@@ -1,12 +1,21 @@
+use bevy::log::LogPlugin;
 use bevy::prelude::*;
 
-use crate::tilemap::{Tilemap, TilemapPlugin, TilemapPos, TilemapType};
+use crate::tilemap::{Tilemap, TilemapIndex, TilemapPlugin, TilemapPos};
 
 mod tilemap;
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins.set(ImagePlugin::default_nearest()))
+        .add_plugins(
+            DefaultPlugins
+                .set(ImagePlugin::default_nearest())
+                .set(LogPlugin {
+                    level: bevy::log::Level::WARN,
+                    filter: "wgpu=error,naga=warn,eternal=trace".to_string(),
+                    ..Default::default()
+                }),
+        )
         .add_plugins(TilemapPlugin)
         .add_systems(Startup, setup)
         .run();
@@ -15,19 +24,26 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
     commands.spawn(Camera2d);
 
-    let texture = asset_server.load("sheets/terrain.png");
-    commands.spawn((
-        Tilemap {
-            tile_dims: UVec2::new(2, 2),
-            texture,
-            ..Default::default()
-        },
-        Name::new("Tilemap"),
-        children![
-            (Name::new("Tile 0 0"), TilemapPos(0, 0), TilemapType(3),),
-            (Name::new("Tile 0 1"), TilemapPos(0, 1), TilemapType(2),),
-            (Name::new("Tile 1 0"), TilemapPos(20, 0), TilemapType(1),),
-            (Name::new("Tile 1 1"), TilemapPos(20, 1), TilemapType(0),),
-        ],
-    ));
+    let atlas_texture = asset_server.load("sheets/terrain.png");
+    let tilemap_entity = commands
+        .spawn((
+            Tilemap {
+                atlas_texture,
+                atlas_dims: UVec2::new(2, 2),
+                tile_size: Vec2::new(32.0, 32.0),
+                ..Default::default()
+            },
+            Name::new("Tilemap"),
+        ))
+        .id();
+
+    for x in -64..64 {
+        for y in -64..64 {
+            commands.entity(tilemap_entity).with_child((
+                Name::new(format!("Tile {x} {y}")),
+                TilemapPos(x, y),
+                TilemapIndex(0),
+            ));
+        }
+    }
 }

@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.16", features = ["wayland"] }
+bytemuck = "1.23.2"
 

@@ -1,11 +1,12 @@
-#![allow(unused)]
 use bevy::{
-    app::Plugin,
+    app::{Plugin, Update},
     asset::{Assets, Handle},
     ecs::{
         component::{Component, HookContext},
         entity::Entity,
         hierarchy::ChildOf,
+        query::With,
+        system::{Commands, Query, Res, ResMut},
         world::DeferredWorld,
     },
     image::Image,
@@ -13,39 +14,59 @@ use bevy::{
     math::{IVec2, UVec2, Vec2, primitives::Rectangle},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
-    render::mesh::{Mesh, Mesh2d},
-    sprite::{ColorMaterial, MeshMaterial2d},
+    render::{
+        mesh::{Mesh, Mesh2d},
+        view::Visibility,
+    },
+    sprite::{Material2dPlugin, MeshMaterial2d},
     transform::components::Transform,
 };
+
+use crate::tilemap::material::{TilePod, TilemapChunkMaterial};
+
+mod material;
 
 pub struct TilemapPlugin;
 
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        //
+        app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
+            .add_systems(Update, update_tilemap_chunk_material);
     }
 }
 
 #[derive(Debug, Component)]
-#[require(TilemapChunkMap)]
+#[require(TilemapChunkMap, Transform, Visibility)]
 #[component(immutable)]
 pub struct Tilemap {
-    pub tile_dims: UVec2,
-    pub texture: Handle<Image>,
+    /// The atlas texture which contains all tile textures.
+    pub atlas_texture: Handle<Image>,
+    /// How many tile textures there are in the atlas.
+    pub atlas_dims: UVec2,
+    /// How many tiles should be in each chunk mesh.
     pub tiles_per_chunk: UVec2,
+    /// The size of each rendered individual tile.
     pub tile_size: Vec2,
 }
 
 impl Default for Tilemap {
     fn default() -> Self {
         Self {
-            tile_dims: Default::default(),
-            texture: Default::default(),
+            atlas_texture: Default::default(),
+            atlas_dims: UVec2::new(4, 4),
             tiles_per_chunk: UVec2::new(16, 16),
             tile_size: Vec2::new(1.0, 1.0),
         }
     }
 }
+
+#[derive(Component, Default, Clone, Copy)]
+#[component(immutable)]
+struct TilemapChunkDirty;
+
+#[derive(Component, Default, Clone, Copy)]
+#[component(immutable)]
+struct TilemapChunkPos(IVec2);
 
 #[derive(Debug)]
 struct TilemapChunk {
@@ -56,8 +77,8 @@ struct TilemapChunk {
 #[derive(Default, Component, Deref, DerefMut)]
 struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
 
-#[derive(Component)]
-#[require(TilemapLayer, TilemapType)]
+#[derive(Component, Clone, Copy)]
+#[require(TilemapIndex)]
 #[component(
     immutable,
     on_insert = on_insert_tilemap_pos,
@@ -71,28 +92,42 @@ fn spawn_chunk(world: &mut DeferredWorld, tilemap_entity: Entity, chunk_pos: IVe
     let tilemap = world
         .get::<Tilemap>(tilemap_entity)
         .expect("Tilemap exists");
-    let texture = tilemap.texture.clone();
+
+    // Collect needed data from tilemap, since we need to release it in order to use world
+    let atlas_texture = tilemap.atlas_texture.clone();
+    let atlas_dims = tilemap.atlas_dims;
+    let tiles_per_chunk = tilemap.tiles_per_chunk;
 
     let chunk_size = tilemap.tile_size * tilemap.tiles_per_chunk.as_vec2();
-
     let chunk_world_pos = chunk_pos.as_vec2() * chunk_size;
     let chunk_world_pos = chunk_world_pos.extend(0.0);
 
+    // A simple rectagle mesh should be enough.
+    // TODO: Check if this should be cached in the future.
     let mut meshes = world.resource_mut::<Assets<Mesh>>();
     let mesh = meshes.add(Rectangle::new(chunk_size.x, chunk_size.y));
 
-    let mut materials = world.resource_mut::<Assets<ColorMaterial>>();
-    let material = materials.add(ColorMaterial {
-        texture: Some(texture),
-        ..Default::default()
+    // This is the image which will hold all tile data used by shader
+    let mut images = world.resource_mut::<Assets<Image>>();
+    let tiles_data = images.add(material::create_empty_tile_indices_image(tiles_per_chunk));
+
+    let mut materials = world.resource_mut::<Assets<TilemapChunkMaterial>>();
+    let material = materials.add(TilemapChunkMaterial {
+        atlas_texture,
+        atlas_dims,
+        tiles_per_chunk,
+        tiles_data,
     });
 
     world
         .commands()
-        .spawn((
+        .entity(tilemap_entity)
+        .with_child((
             Mesh2d(mesh),
             MeshMaterial2d(material),
             Transform::from_translation(chunk_world_pos),
+            TilemapChunkPos(chunk_pos),
+            TilemapChunkDirty,
         ))
         .id()
 }
@@ -138,6 +173,12 @@ fn on_insert_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
 
     if let Some(chunk) = chunk_map.get_mut(&chunk_pos) {
         chunk.tiles[tile_index] = Some(entity);
+
+        let chunk_entity = chunk.entity;
+        world
+            .commands()
+            .entity(chunk_entity)
+            .insert(TilemapChunkDirty);
     } else {
         let chunk_entity = spawn_chunk(&mut world, parent, chunk_pos);
 
@@ -202,21 +243,87 @@ fn on_remove_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
     if let Some(chunk) = chunk_map.get_mut(&chunk_pos) {
         chunk.tiles[tile_index] = None;
 
+        // We need to copy entity before using world.commands(), due to borrow checker.
+        let chunk_entity = chunk.entity;
         if chunk.tiles.iter().all(Option::is_none) {
-            // We need to copy entity before using world.commands(), due to borrow checker.
-            let chunk_entity = chunk.entity;
-
             world.commands().entity(chunk_entity).despawn();
+        } else {
+            world
+                .commands()
+                .entity(chunk_entity)
+                .insert(TilemapChunkDirty);
         }
     } else {
-        warn!("Unable to find chunk for tile pos {x}, {y}");
+        error!("Unable to find chunk for tile pos {x}, {y}");
     }
 }
 
-#[derive(Component, Default, Debug)]
+#[derive(Component, Default, Debug, Clone, Copy)]
 #[component(immutable)]
-pub struct TilemapLayer(pub u16);
+pub struct TilemapIndex(pub u16);
 
-#[derive(Component, Default, Debug)]
-#[component(immutable)]
-pub struct TilemapType(pub u16);
+fn update_tilemap_chunk_material(
+    q_chunks: Query<
+        (
+            Entity,
+            &TilemapChunkPos,
+            &mut MeshMaterial2d<TilemapChunkMaterial>,
+            &ChildOf,
+        ),
+        With<TilemapChunkDirty>,
+    >,
+    q_tiles: Query<(&TilemapPos, &TilemapIndex)>,
+    q_tilemaps: Query<(&Tilemap, &TilemapChunkMap)>,
+    materials: Res<Assets<TilemapChunkMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut commands: Commands,
+) {
+    for (chunk_entity, TilemapChunkPos(chunk_pos), material, &ChildOf(tilemap_entity)) in q_chunks {
+        let Ok((_tilemap, chunk_map)) = q_tilemaps.get(tilemap_entity) else {
+            error!("Failed to update tilemap material. Tilemap not found.");
+            continue;
+        };
+
+        let Some(chunk) = chunk_map.get(chunk_pos) else {
+            warn!("Failed to update tilemap material. Chunk not found for chunk {chunk_pos}.");
+            continue;
+        };
+
+        let Some(material) = materials.get(material.id()) else {
+            warn!("Failed to update tilemap material. Material not found for chunk {chunk_pos}.");
+            continue;
+        };
+
+        let Some(tile_data_image) = images.get_mut(material.tiles_data.id()) else {
+            warn!("Failed to update tilemap material. Tile data not found for chunk {chunk_pos}.");
+            continue;
+        };
+
+        let tile_data_pods: &mut [TilePod] = bytemuck::cast_slice_mut(
+            tile_data_image
+                .data
+                .as_mut()
+                .expect("Material must have been initialized"),
+        );
+
+        chunk
+            .tiles
+            .iter()
+            .enumerate()
+            .for_each(|(idx, &maybe_entity)| {
+                let pod = if let Some(entity) = maybe_entity
+                    && let Ok((_tile_pos, tile_index)) = q_tiles.get(entity)
+                {
+                    TilePod {
+                        index: tile_index.0,
+                    }
+                } else {
+                    TilePod::discard()
+                };
+
+                tile_data_pods[idx] = pod;
+            });
+
+        commands.entity(chunk_entity).remove::<TilemapChunkDirty>();
+    }
+}
