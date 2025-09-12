@@ -4,10 +4,10 @@ use bevy::{
     math::UVec2,
     reflect::Reflect,
     render::render_resource::{
-        AsBindGroup, Extent3d, ShaderRef, TextureDescriptor, TextureDimension, TextureFormat,
-        TextureUsages,
+        AsBindGroup, Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
-    sprite::Material2d,
+    shader::ShaderRef,
+    sprite_render::Material2d,
 };
 use bytemuck::{Pod, Zeroable};
 

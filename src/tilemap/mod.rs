@@ -1,10 +1,12 @@
 use bevy::{
     app::{Plugin, Update},
     asset::{Assets, Handle},
+    camera::visibility::{Visibility, VisibilityClass, add_visibility_class},
     ecs::{
-        component::{Component, HookContext},
+        component::Component,
         entity::Entity,
         hierarchy::ChildOf,
+        lifecycle::HookContext,
         name::Name,
         query::With,
         system::{Commands, Query, Res, ResMut},
@@ -13,17 +15,14 @@ use bevy::{
     image::Image,
     log::{debug, error, warn},
     math::{IVec2, UVec2, Vec2, primitives::Rectangle},
+    mesh::{Mesh, Mesh2d},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
     reflect::Reflect,
-    render::{
-        mesh::{Mesh, Mesh2d},
-        view::{Visibility, VisibilityClass, add_visibility_class},
-    },
-    sprite::{Material2dPlugin, MeshMaterial2d},
+    sprite_render::{Material2dPlugin, MeshMaterial2d},
     transform::components::Transform,
 };
-use bevy_inspector_egui::quick::AssetInspectorPlugin;
+// use bevy_inspector_egui::quick::AssetInspectorPlugin;
 
 use crate::tilemap::material::{TilePod, TilemapChunkMaterial};
 
@@ -34,7 +33,7 @@ pub struct TilemapPlugin;
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
-            .add_plugins(AssetInspectorPlugin::<TilemapChunkMaterial>::default())
+            // .add_plugins(AssetInspectorPlugin::<TilemapChunkMaterial>::default())
             .add_systems(Update, update_tilemap_chunk_material);
     }
 }
@@ -72,14 +71,14 @@ struct TilemapChunkDirty;
 #[component(immutable)]
 struct TilemapChunkPos(IVec2);
 
-#[derive(Debug)]
-struct TilemapChunk {
+#[derive(Debug, Reflect)]
+pub struct TilemapChunk {
     entity: Entity,
-    tiles: Box<[Option<Entity>]>,
+    pub tiles: Vec<Option<Entity>>,
 }
 
-#[derive(Default, Component, Deref, DerefMut)]
-struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
+#[derive(Default, Component, Reflect, Deref, DerefMut)]
+pub struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
 
 #[derive(Component, Clone, Copy, Reflect)]
 #[require(TilemapIndex)]
@@ -174,9 +173,9 @@ fn on_insert_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
         y.rem_euclid(tiles_per_chunk.y as i32) as u32,
     );
 
-    // Using column-major
-    let tile_index = (tile_local_pos.x * tiles_per_chunk.y + tile_local_pos.y) as usize;
-
+    // Using row-major with up-side down Y axis, to match how image is laid out in GPU memory
+    let tile_index = ((tiles_per_chunk.y - 1 - tile_local_pos.y) * tiles_per_chunk.x
+        + tile_local_pos.x) as usize;
     let Some(mut chunk_map) = world.get_mut::<TilemapChunkMap>(parent) else {
         error!("Tilemap must have a ChunkMap component");
         return;
@@ -199,7 +198,7 @@ fn on_insert_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
             return;
         };
 
-        let mut tiles = vec![None; tiles_per_chunk.element_product() as usize].into_boxed_slice();
+        let mut tiles = vec![None; tiles_per_chunk.element_product() as usize];
         tiles[tile_index] = Some(entity);
 
         chunk_map.insert(
@@ -328,8 +327,12 @@ fn update_tilemap_chunk_material(
             .enumerate()
             .for_each(|(idx, &maybe_entity)| {
                 let pod = if let Some(entity) = maybe_entity
-                    && let Ok((_tile_pos, tile_index)) = q_tiles.get(entity)
+                    && let Ok((tile_pos, tile_index)) = q_tiles.get(entity)
                 {
+                    debug!(
+                        "Tile at {},{} ({idx}) with {}",
+                        tile_pos.0, tile_pos.1, tile_index.0
+                    );
                     TilePod {
                         index: tile_index.0,
                     }

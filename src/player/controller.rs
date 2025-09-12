@@ -1,6 +1,5 @@
 use bevy::{
     app::Plugin,
-    core_pipeline::core_2d::Camera2d,
     ecs::{component::Component, system::Query},
     input::{
         ButtonInput,
@@ -8,7 +7,6 @@ use bevy::{
         mouse::{MouseButton, MouseMotion, MouseWheel},
     },
     prelude::*,
-    render::camera::Projection,
     transform::components::Transform,
 };
 
@@ -63,7 +61,7 @@ fn move_player(
 }
 
 fn zoom_player(
-    mut scroll_evr: EventReader<MouseWheel>,
+    mut scroll_evr: MessageReader<MouseWheel>,
     mut camera_query: Query<&mut Projection, With<Camera2d>>,
     player_query: Query<&PlayerController>,
 ) {
@@ -85,7 +83,7 @@ fn zoom_player(
 }
 
 fn pan_camera(
-    mut motion_evr: EventReader<MouseMotion>,
+    mut motion_evr: MessageReader<MouseMotion>,
     input: Res<ButtonInput<MouseButton>>,
     mut camera_query: Query<&mut Transform, With<Camera2d>>,
     player_query: Query<&PlayerController>,
@@ -105,4 +103,3 @@ fn pan_camera(
         }
     }
 }
-

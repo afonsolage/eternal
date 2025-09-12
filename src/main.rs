@@ -4,13 +4,17 @@ use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::{
+    debug::DebugPlugin,
     noise::Noise,
     player::{Player, PlayerController, PlayerPlugin},
     tilemap::{Tilemap, TilemapIndex, TilemapPlugin, TilemapPos},
 };
+
+mod debug;
 mod noise;
 mod player;
 mod tilemap;
+mod ui;
 
 fn main() {
     App::new()
@@ -23,9 +27,8 @@ fn main() {
                     ..Default::default()
                 }),
         )
-        .add_plugins(EguiPlugin::default())
-        .add_plugins(WorldInspectorPlugin::new())
-        .add_plugins((TilemapPlugin, PlayerPlugin))
+        .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
+        .add_plugins((TilemapPlugin, PlayerPlugin, DebugPlugin))
         .add_systems(Startup, setup)
         .run();
 }

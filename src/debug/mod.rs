@@ -1,4 +1,4 @@
-use bevy::app::{Plugin, App};
+use bevy::app::{App, Plugin};
 
 mod ui_tilemap_chunk;
 
