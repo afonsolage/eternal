@@ -5,6 +5,7 @@ use bevy::{
         component::{Component, HookContext},
         entity::Entity,
         hierarchy::ChildOf,
+        name::Name,
         query::With,
         system::{Commands, Query, Res, ResMut},
         world::DeferredWorld,
@@ -14,13 +15,15 @@ use bevy::{
     math::{IVec2, UVec2, Vec2, primitives::Rectangle},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
+    reflect::Reflect,
     render::{
         mesh::{Mesh, Mesh2d},
-        view::Visibility,
+        view::{Visibility, VisibilityClass, add_visibility_class},
     },
     sprite::{Material2dPlugin, MeshMaterial2d},
     transform::components::Transform,
 };
+use bevy_inspector_egui::quick::AssetInspectorPlugin;
 
 use crate::tilemap::material::{TilePod, TilemapChunkMaterial};
 
@@ -31,13 +34,14 @@ pub struct TilemapPlugin;
 impl Plugin for TilemapPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
+            .add_plugins(AssetInspectorPlugin::<TilemapChunkMaterial>::default())
             .add_systems(Update, update_tilemap_chunk_material);
     }
 }
 
-#[derive(Debug, Component)]
-#[require(TilemapChunkMap, Transform, Visibility)]
-#[component(immutable)]
+#[derive(Debug, Component, Reflect)]
+#[require(TilemapChunkMap, Transform, Visibility, VisibilityClass)]
+#[component(immutable, on_add = add_visibility_class::<Mesh2d>)]
 pub struct Tilemap {
     /// The atlas texture which contains all tile textures.
     pub atlas_texture: Handle<Image>,
@@ -64,7 +68,7 @@ impl Default for Tilemap {
 #[component(immutable)]
 struct TilemapChunkDirty;
 
-#[derive(Component, Default, Clone, Copy)]
+#[derive(Component, Default, Clone, Copy, Reflect)]
 #[component(immutable)]
 struct TilemapChunkPos(IVec2);
 
@@ -77,7 +81,7 @@ struct TilemapChunk {
 #[derive(Default, Component, Deref, DerefMut)]
 struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
 
-#[derive(Component, Clone, Copy)]
+#[derive(Component, Clone, Copy, Reflect)]
 #[require(TilemapIndex)]
 #[component(
     immutable,
@@ -87,7 +91,7 @@ struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
 pub struct TilemapPos(pub i32, pub i32);
 
 fn spawn_chunk(world: &mut DeferredWorld, tilemap_entity: Entity, chunk_pos: IVec2) -> Entity {
-    debug!("Spawning chunk ({chunk_pos:?})");
+    debug!("Spawning chunk ({chunk_pos})");
 
     let tilemap = world
         .get::<Tilemap>(tilemap_entity)
@@ -119,17 +123,24 @@ fn spawn_chunk(world: &mut DeferredWorld, tilemap_entity: Entity, chunk_pos: IVe
         tiles_data,
     });
 
-    world
+    let chunk_entity = world
         .commands()
-        .entity(tilemap_entity)
-        .with_child((
+        .spawn((
             Mesh2d(mesh),
             MeshMaterial2d(material),
             Transform::from_translation(chunk_world_pos),
             TilemapChunkPos(chunk_pos),
             TilemapChunkDirty,
+            Name::new(format!("Chunk {chunk_pos}")),
         ))
-        .id()
+        .id();
+
+    world
+        .commands()
+        .entity(tilemap_entity)
+        .add_child(chunk_entity);
+
+    chunk_entity
 }
 
 fn on_insert_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -259,7 +270,6 @@ fn on_remove_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
 }
 
 #[derive(Component, Default, Debug, Clone, Copy)]
-#[component(immutable)]
 pub struct TilemapIndex(pub u16);
 
 fn update_tilemap_chunk_material(
@@ -298,6 +308,12 @@ fn update_tilemap_chunk_material(
             warn!("Failed to update tilemap material. Tile data not found for chunk {chunk_pos}.");
             continue;
         };
+
+        #[cfg(debug_assertions)]
+        {
+            let tiles = chunk.tiles.iter().filter(|o| o.is_some()).count();
+            debug!("Updating material of chunk {chunk_pos}. {tiles} will be rendered");
+        }
 
         let tile_data_pods: &mut [TilePod] = bytemuck::cast_slice_mut(
             tile_data_image

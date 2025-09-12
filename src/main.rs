@@ -1,8 +1,15 @@
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
+use bevy_egui::EguiPlugin;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
-use crate::tilemap::{Tilemap, TilemapIndex, TilemapPlugin, TilemapPos};
-
+use crate::{
+    noise::Noise,
+    player::{Player, PlayerController, PlayerPlugin},
+    tilemap::{Tilemap, TilemapIndex, TilemapPlugin, TilemapPos},
+};
+mod noise;
+mod player;
 mod tilemap;
 
 fn main() {
@@ -12,11 +19,13 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(LogPlugin {
                     level: bevy::log::Level::WARN,
-                    filter: "wgpu=error,naga=warn,eternal=trace".to_string(),
+                    filter: "wgpu=error,eternal=trace".to_string(),
                     ..Default::default()
                 }),
         )
-        .add_plugins(TilemapPlugin)
+        .add_plugins(EguiPlugin::default())
+        .add_plugins(WorldInspectorPlugin::new())
+        .add_plugins((TilemapPlugin, PlayerPlugin))
         .add_systems(Startup, setup)
         .run();
 }
@@ -24,8 +33,20 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
     commands.spawn(Camera2d);
 
+    commands.spawn((
+        Player,
+        PlayerController::default(),
+        Sprite {
+            image: asset_server.load("sheets/player.png"),
+            ..Default::default()
+        },
+        Transform::from_xyz(0.0, 0.0, 0.0),
+    ));
+
+    let noise = Noise::new();
     let atlas_texture = asset_server.load("sheets/terrain.png");
-    let tilemap_entity = commands
+
+    commands
         .spawn((
             Tilemap {
                 atlas_texture,
@@ -35,15 +56,19 @@ fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
             },
             Name::new("Tilemap"),
         ))
-        .id();
+        .with_children(|parent| {
+            for x in -3..3 {
+                for y in -3..3 {
+                    let i = noise.stone(x as f32, y as f32);
+                    info!("{i}");
+                    let i = if i > 0 { 1 } else { 0 };
 
-    for x in -64..64 {
-        for y in -64..64 {
-            commands.entity(tilemap_entity).with_child((
-                Name::new(format!("Tile {x} {y}")),
-                TilemapPos(x, y),
-                TilemapIndex(0),
-            ));
-        }
-    }
+                    parent.spawn((
+                        Name::new(format!("Tile {x} {y}")),
+                        TilemapPos(x, y),
+                        TilemapIndex(i),
+                    ));
+                }
+            }
+        });
 }

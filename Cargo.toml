@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16", features = ["wayland"] }
+bevy = { version = "0.16", features = ["wayland", "file_watcher"] }
 bytemuck = "1.23.2"
 
+bevy_egui = "0.36"
+bevy-inspector-egui = "0.33"
+
+noise = "0.9"

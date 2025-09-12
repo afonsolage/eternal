@@ -2,7 +2,7 @@ use bevy::{
     asset::{Asset, Handle, RenderAssetUsages},
     image::{Image, ImageSampler},
     math::UVec2,
-    reflect::TypePath,
+    reflect::Reflect,
     render::render_resource::{
         AsBindGroup, Extent3d, ShaderRef, TextureDescriptor, TextureDimension, TextureFormat,
         TextureUsages,
@@ -26,7 +26,7 @@ impl TilePod {
     }
 }
 
-#[derive(Asset, TypePath, AsBindGroup, Clone, Debug)]
+#[derive(Asset, AsBindGroup, Clone, Debug, Reflect)]
 pub struct TilemapChunkMaterial {
     /// Texture image of the atlas
     #[texture(0, dimension = "2d")]
