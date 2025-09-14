@@ -90,8 +90,6 @@ pub struct TilemapChunkMap(HashMap<IVec2, TilemapChunk>);
 pub struct TilemapPos(pub i32, pub i32);
 
 fn spawn_chunk(world: &mut DeferredWorld, tilemap_entity: Entity, chunk_pos: IVec2) -> Entity {
-    debug!("Spawning chunk ({chunk_pos})");
-
     let tilemap = world
         .get::<Tilemap>(tilemap_entity)
         .expect("Tilemap exists");
@@ -174,8 +172,7 @@ fn on_insert_tilemap_pos(mut world: DeferredWorld, HookContext { entity, .. }: H
     );
 
     // Using row-major with up-side down Y axis, to match how image is laid out in GPU memory
-    let tile_index = ((tiles_per_chunk.y - 1 - tile_local_pos.y) * tiles_per_chunk.x
-        + tile_local_pos.x) as usize;
+    let tile_index = (tile_local_pos.x * tiles_per_chunk.y + tile_local_pos.y) as usize;
     let Some(mut chunk_map) = world.get_mut::<TilemapChunkMap>(parent) else {
         error!("Tilemap must have a ChunkMap component");
         return;
@@ -311,7 +308,7 @@ fn update_tilemap_chunk_material(
         #[cfg(debug_assertions)]
         {
             let tiles = chunk.tiles.iter().filter(|o| o.is_some()).count();
-            debug!("Updating material of chunk {chunk_pos}. {tiles} will be rendered");
+            debug!("Updating material of chunk {chunk_pos}. {tiles} tiles will be rendered");
         }
 
         let tile_data_pods: &mut [TilePod] = bytemuck::cast_slice_mut(
@@ -327,12 +324,8 @@ fn update_tilemap_chunk_material(
             .enumerate()
             .for_each(|(idx, &maybe_entity)| {
                 let pod = if let Some(entity) = maybe_entity
-                    && let Ok((tile_pos, tile_index)) = q_tiles.get(entity)
+                    && let Ok((_tile_pos, tile_index)) = q_tiles.get(entity)
                 {
-                    debug!(
-                        "Tile at {},{} ({idx}) with {}",
-                        tile_pos.0, tile_pos.1, tile_index.0
-                    );
                     TilePod {
                         index: tile_index.0,
                     }

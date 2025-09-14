@@ -13,8 +13,11 @@ const DISCARD = 65535u;
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
+    // flip the UV, since shaders works top-down;
+    let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+
     // Calculate the current tile position in the chunk mesh;
-    let tile_pos = vec2<u32>(floor(in.uv * vec2<f32>(tiles_per_chunk)));
+    let tile_pos = vec2<u32>(floor(uv * vec2<f32>(tiles_per_chunk)));
 
     // Get the info about current tile
     let tile_data = textureLoad(tiles_data, tile_pos, 0);
@@ -29,13 +32,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // TODO: Add other data in the future
 
     // Calculate the UV relative to the tile;
-    let tile_uv = fract(in.uv * vec2<f32>(tiles_per_chunk));
+    let tile_uv = fract(uv * vec2<f32>(tiles_per_chunk));
 
     // Calculate the coord on the desired tile texture inside atlas;
-    // column-major ordering
     let atlas_uv = vec2<f32>(
-        floor(f32(tile_index) / f32(atlas_dims.y)),
-        f32(tile_index % atlas_dims.y) 
+        f32(tile_index % atlas_dims.y),
+        floor(f32(tile_index) / f32(atlas_dims.y))
     );
 
     // Compute the final coords and convert it to UV (0.0, 0.0) to (1.0, 1.0)

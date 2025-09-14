@@ -48,23 +48,25 @@ fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
 
     let noise = Noise::new();
     let atlas_texture = asset_server.load("sheets/terrain.png");
+    // let atlas_texture = asset_server.load("sheets/tilemap_debug.png");
 
     commands
         .spawn((
             Tilemap {
                 atlas_texture,
-                atlas_dims: UVec2::new(2, 2),
+                atlas_dims: UVec2::new(4, 4),
                 tile_size: Vec2::new(32.0, 32.0),
                 ..Default::default()
             },
             Name::new("Tilemap"),
         ))
         .with_children(|parent| {
-            for x in -3..3 {
-                for y in -3..3 {
-                    let i = noise.stone(x as f32, y as f32);
+            for x in 0..16 {
+                for y in 0..16 {
+                    let h = noise.stone(x as f32, y as f32);
+                    let i = if h > 50 { 1 } else { 2 };
+
                     info!("{i}");
-                    let i = if i > 0 { 1 } else { 0 };
 
                     parent.spawn((
                         Name::new(format!("Tile {x} {y}")),
