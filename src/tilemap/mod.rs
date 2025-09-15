@@ -1,3 +1,4 @@
+#![allow(unused)]
 use bevy::{
     app::{Plugin, Update},
     asset::{Assets, Handle},

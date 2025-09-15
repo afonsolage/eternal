@@ -4,9 +4,6 @@ use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
 struct WindowRoot;
 
 #[derive(Component)]
-struct CloseBtn;
-
-#[derive(Component)]
 struct TitleBar;
 
 pub fn spawn_window<'a>(
@@ -28,11 +25,15 @@ pub fn spawn_window<'a>(
     let mut entity_commands = commands.spawn((
         Node {
             position_type: PositionType::Absolute,
-            width: Val::Px(1000.0),
-            height: Val::Px(500.0),
-            align_items: AlignItems::Start,
+            align_items: AlignItems::Stretch,
             justify_content: JustifyContent::Center,
             flex_direction: FlexDirection::Column,
+            padding: UiRect {
+                left: px(12.0),
+                right: px(12.0),
+                top: px(0.0),
+                bottom: px(12.0),
+            },
             ..Default::default()
         },
         ImageNode {
@@ -50,7 +51,6 @@ pub fn spawn_window<'a>(
                 .spawn((
                     Name::new("Top"),
                     Node {
-                        width: Val::Percent(100.0),
                         height: px(30.0),
                         min_height: px(30.0),
                         margin: UiRect::top(Val::Px(5.0)),

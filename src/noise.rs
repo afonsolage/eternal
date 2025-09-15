@@ -53,10 +53,8 @@ impl Noise {
         unreachable!()
     }
 
-    pub fn stone(&self, x: f32, z: f32) -> i32 {
-        let n = self.continentalness.get([x as f64, z as f64]) as f32;
-        // let add = self.lerp(n);
-        // 100 + add
+    pub fn stone(&self, x: f32, y: f32) -> i32 {
+        let n = self.continentalness.get([x as f64, y as f64]) as f32;
         (n * 100.0) as i32
     }
 }

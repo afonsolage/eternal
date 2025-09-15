@@ -14,7 +14,7 @@ const DISCARD = 65535u;
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // flip the UV, since shaders works top-down;
-    let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+    let uv = vec2<f32>(in.uv.x, in.uv.y);
 
     // Calculate the current tile position in the chunk mesh;
     let tile_pos = vec2<u32>(floor(uv * vec2<f32>(tiles_per_chunk)));
