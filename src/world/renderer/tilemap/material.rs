@@ -11,6 +11,8 @@ use bevy::{
 };
 use bytemuck::{Pod, Zeroable};
 
+use super::TILES_PER_CHUNK;
+
 const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 
 #[repr(C)]
@@ -49,15 +51,15 @@ impl Material2d for TilemapChunkMaterial {
     }
 }
 
-pub fn create_empty_tile_indices_image(tiles_per_chunk: UVec2) -> Image {
-    let empty_data = vec![0; tiles_per_chunk.element_product() as usize * size_of::<TilePod>()];
+pub fn create_empty_tile_indices_image() -> Image {
+    let empty_data = vec![0; TILES_PER_CHUNK.element_product() as usize * size_of::<TilePod>()];
     Image {
         data: Some(empty_data),
         texture_descriptor: TextureDescriptor {
             label: None,
             size: Extent3d {
-                width: tiles_per_chunk.x,
-                height: tiles_per_chunk.y,
+                width: TILES_PER_CHUNK.x as u32,
+                height: TILES_PER_CHUNK.y as u32,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,

@@ -2,28 +2,17 @@ use bevy::prelude::*;
 
 use crate::world::tile::TileType;
 
-pub const WIDTH: usize = 512;
-pub const HEIGHT: usize = 512;
+pub const WIDTH: usize = 256;
+pub const HEIGHT: usize = 256;
 
 pub const SIZE: usize = WIDTH * HEIGHT;
 
-#[derive(Debug)]
+#[derive(Default, Debug, Reflect)]
 pub struct Grid<T> {
-    pub data: Box<[T; SIZE]>,
+    pub data: Vec<T>,
 }
 
-impl<T> Default for Grid<T>
-where
-    T: Default + Copy,
-{
-    fn default() -> Self {
-        Self {
-            data: Box::new([T::default(); SIZE]),
-        }
-    }
-}
-
-#[derive(Default, Resource)]
+#[derive(Debug, Default, Reflect)]
 pub struct Map {
     pub types: Grid<TileType>,
 }
@@ -31,8 +20,9 @@ pub struct Map {
 impl Map {
     pub fn new() -> Self {
         Self {
-            types: Default::default(),
+            types: Grid {
+                data: vec![Default::default(); SIZE],
+            },
         }
     }
 }
-

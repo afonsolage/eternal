@@ -13,8 +13,9 @@ pub fn generate_new_map() -> Map {
         .iter_mut()
         .enumerate()
         .map(|(idx, tile_type)| {
-            let x = (idx / map::HEIGHT) as i32;
-            let y = (idx % map::HEIGHT) as i32;
+            // Row-Major
+            let x = (idx % map::HEIGHT) as i32;
+            let y = (idx / map::HEIGHT) as i32;
             (x, y, tile_type)
         })
         .for_each(|(x, y, tile_type)| {

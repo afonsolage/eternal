@@ -6,13 +6,12 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use crate::{
     debug::DebugPlugin,
     player::{Player, PlayerController, PlayerPlugin},
-    world::genesis::generate_new_map,
+    world::WorldPlugin,
 };
 
 mod debug;
 mod noise;
 mod player;
-mod tilemap;
 mod ui;
 pub mod world;
 
@@ -28,7 +27,7 @@ fn main() {
                 }),
         )
         .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
-        .add_plugins((PlayerPlugin, DebugPlugin))
+        .add_plugins((WorldPlugin, PlayerPlugin, DebugPlugin))
         .add_systems(Startup, setup)
         .run();
 }
@@ -45,7 +44,4 @@ fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         },
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
-
-    let map = generate_new_map();
-    commands.insert_resource(map);
 }

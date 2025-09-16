@@ -10,9 +10,11 @@ use bevy::{
 };
 
 use crate::{
-    tilemap::{Tilemap, TilemapChunkMap},
     ui::window::spawn_window,
-    world::map::{self, Map},
+    world::{
+        map::{self, Map},
+        renderer::tilemap::Tilemap,
+    },
 };
 
 pub struct UIDisplayMap;
@@ -47,18 +49,14 @@ fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn display_map(
     body: Res<BodyEntity>,
-    maybe_map: Option<Res<Map>>,
+    q_map: Query<&Tilemap, Changed<Tilemap>>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
 ) {
-    let Some(map) = maybe_map else { return };
+    let Ok(tilemap) = q_map.single() else { return };
 
-    if !map.is_changed() {
-        return;
-    }
-
-    let image = images.add(create_map_image(&map));
+    let image = images.add(create_map_image(&tilemap.map));
 
     let BodyEntity(body) = *body;
     commands
@@ -66,6 +64,7 @@ fn display_map(
         .despawn_children()
         .with_child(ImageNode {
             image,
+            flip_y: true,
             ..Default::default()
         });
 }
