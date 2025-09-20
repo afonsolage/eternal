@@ -37,7 +37,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Calculate the coord on the desired tile texture inside atlas;
     let atlas_uv = vec2<f32>(
         f32(tile_index % atlas_dims.y),
-        floor(f32(tile_index) / f32(atlas_dims.y))
+        f32(tile_index / atlas_dims.y)
     );
 
     // Compute the final coords and convert it to UV (0.0, 0.0) to (1.0, 1.0)

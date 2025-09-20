@@ -23,7 +23,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let map = generate_new_map();
     let tilemap = Tilemap {
         atlas_texture: asset_server.load("sheets/terrain.png"),
-        atlas_dims: UVec2::new(2, 2),
+        atlas_dims: UVec2::new(4, 4),
         tile_size: Vec2::new(32.0, 32.0),
         map,
     };
