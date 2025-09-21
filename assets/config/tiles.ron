@@ -1,0 +1,34 @@
+(
+  [
+    (
+      ty: Terrain,
+      name: "GRASS",
+      texture: "sheets/terrain.png",
+      map_color: "#33cc33",
+    ),
+    (
+      ty: Terrain,
+      name: "DIRT",
+      texture: "sheets/terrain.png",
+      map_color: "#996633",
+    ),
+    (
+      ty: Terrain,
+      name: "WATER",
+      texture: "sheets/terrain.png",
+      map_color: "#3399ff",
+    ),
+    (
+      ty: Terrain,
+      name: "ROCK",
+      texture: "sheets/terrain.png",
+      map_color: "#808080",
+    ),
+    (
+      ty: Terrain,
+      name: "SAND",
+      texture: "sheets/terrain.png",
+      map_color: "#ffcc66",
+    ),
+  ]
+)

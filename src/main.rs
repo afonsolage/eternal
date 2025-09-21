@@ -4,11 +4,13 @@ use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::{
+    config::{ConfigPlugin, tile::TileInfoList},
     debug::DebugPlugin,
     player::{Player, PlayerController, PlayerPlugin},
     world::WorldPlugin,
 };
 
+mod config;
 mod debug;
 mod noise;
 mod player;
@@ -27,12 +29,13 @@ fn main() {
                 }),
         )
         .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
-        .add_plugins((WorldPlugin, PlayerPlugin, DebugPlugin))
+        .add_plugins((ConfigPlugin, WorldPlugin, PlayerPlugin, DebugPlugin))
         .add_systems(Startup, setup)
+        .add_systems(Update, print_tile_info_list)
         .run();
 }
 
-fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
     commands.spawn((
@@ -44,4 +47,22 @@ fn setup(mut commands: Commands, asset_server: ResMut<AssetServer>) {
         },
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
+
+    commands.insert_resource(List(asset_server.load("config/tiles.ron")));
+}
+
+#[derive(Resource)]
+struct List(Handle<TileInfoList>);
+
+fn print_tile_info_list(
+    handle: Res<List>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    assets: Res<Assets<TileInfoList>>,
+) {
+    if asset_server.is_loaded(handle.0.id())
+        && let Some(tile_info_list) = assets.get(handle.0.id())
+    {
+        debug!("Tile Info List: {tile_info_list:?}");
+    }
 }

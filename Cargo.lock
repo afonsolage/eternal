@@ -2352,6 +2352,9 @@ dependencies = [
  "bevy_egui",
  "bytemuck",
  "noise",
+ "ron",
+ "serde",
+ "thiserror 2.0.16",
 ]
 
 [[package]]
