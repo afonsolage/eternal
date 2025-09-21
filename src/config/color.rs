@@ -1,7 +1,7 @@
-use bevy::color::Srgba;
+use bevy::{color::Srgba, prelude::Deref};
 use serde::Deserialize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Deref)]
 pub struct ConfigColor(Srgba);
 
 impl<'de> Deserialize<'de> for ConfigColor {

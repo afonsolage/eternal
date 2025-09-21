@@ -10,6 +10,7 @@ use bevy::{
 };
 
 use crate::{
+    config::tile::TileInfoList,
     ui::window::spawn_window,
     world::{
         map::{self, Map},
@@ -21,8 +22,12 @@ pub struct UIDisplayMap;
 
 impl Plugin for UIDisplayMap {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_debug_ui)
-            .add_systems(Update, display_map);
+        app.add_systems(Startup, spawn_debug_ui).add_systems(
+            Update,
+            display_map.run_if(resource_exists::<TileInfoList>.and(
+                resource_changed::<TileInfoList>.or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
+            )),
+        );
     }
 }
 
@@ -37,11 +42,8 @@ fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         &mut commands,
         &asset_server,
         "[Debug] Display Map",
-        (DisplayMapUI),
+        (DisplayMapUI,),
     )
-    .with_children(|parent| {
-        //
-    })
     .id();
 
     commands.insert_resource(BodyEntity(body));
@@ -49,34 +51,42 @@ fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 fn display_map(
     body: Res<BodyEntity>,
-    q_map: Query<&Tilemap, Changed<Tilemap>>,
+    q_map: Query<&Tilemap>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
+    tile_info_list: Res<TileInfoList>,
 ) {
     let Ok(tilemap) = q_map.single() else { return };
 
-    let image = images.add(create_map_image(&tilemap.map));
+    debug!("Updating map");
+
+    let image = images.add(create_map_image(&tilemap.map, &tile_info_list));
 
     let BodyEntity(body) = *body;
-    commands
-        .entity(body)
-        .despawn_children()
-        .with_child(ImageNode {
+    commands.entity(body).despawn_children().with_child((
+        Name::new("Image Container"),
+        Node {
+            width: percent(100.0),
+            justify_content: JustifyContent::Center,
+            ..Default::default()
+        },
+        children![ImageNode {
             image,
             flip_y: true,
             ..Default::default()
-        });
+        }],
+    ));
 }
 
-fn create_map_image(map: &Map) -> Image {
+fn create_map_image(map: &Map, tile_info_list: &TileInfoList) -> Image {
     let data = map
         .types
         .data
         .iter()
         .flat_map(|tt| {
-            tt.color()
-                .to_linear()
+            let info = &tile_info_list.0[tt.0 as usize];
+            info.map_color
                 .to_f32_array()
                 .into_iter()
                 .flat_map(|f| f.to_le_bytes())

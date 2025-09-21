@@ -13,20 +13,20 @@ impl Plugin for ConfigTilePlugin {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum TileType {
     Terrain,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct TileInfo {
-    ty: TileType,
-    name: String,
-    texture: String,
-    map_color: ConfigColor,
+    pub ty: TileType,
+    pub name: String,
+    pub texture: String,
+    pub map_color: ConfigColor,
 }
 
-#[derive(Asset, TypePath, Debug, Deserialize)]
+#[derive(Asset, TypePath, Debug, Deserialize, Resource, Clone)]
 pub struct TileInfoList(pub Vec<TileInfo>);
 
 #[derive(Default)]

@@ -20,7 +20,7 @@ pub fn generate_new_map() -> Map {
         })
         .for_each(|(x, y, tile_type)| {
             let i = noise.stone(x as f32, y as f32);
-            let tt = if i > 0 { 13 } else { 5 };
+            let tt = if i > 0 { 1 } else { 0 };
             tile_type.0 = tt as u16;
         });
 

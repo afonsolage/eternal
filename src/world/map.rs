@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::world::tile::TileType;
+use crate::world::tile::TileId;
 
 pub const WIDTH: usize = 256;
 pub const HEIGHT: usize = 256;
@@ -14,7 +14,7 @@ pub struct Grid<T> {
 
 #[derive(Debug, Default, Reflect)]
 pub struct Map {
-    pub types: Grid<TileType>,
+    pub types: Grid<TileId>,
 }
 
 impl Map {

@@ -51,8 +51,7 @@ pub fn spawn_window<'a>(
                 .spawn((
                     Name::new("Top"),
                     Node {
-                        height: px(30.0),
-                        min_height: px(30.0),
+                        min_height: Val::Px(40.0),
                         margin: UiRect::top(Val::Px(5.0)),
                         ..Default::default()
                     },
@@ -65,8 +64,8 @@ pub fn spawn_window<'a>(
                     parent.spawn((
                         Name::new("Right"),
                         Node {
-                            width: Val::Px(40.0),
-                            min_width: Val::Px(40.0),
+                            min_width: Val::Px(65.0),
+                            min_height: Val::Px(40.0),
                             ..Default::default()
                         },
                     ));
@@ -76,8 +75,6 @@ pub fn spawn_window<'a>(
 
     commands.spawn((
         Node {
-            width: percent(100.0),
-            height: percent(100.0),
             padding: px(10.0).all(),
             ..Default::default()
         },
@@ -91,8 +88,7 @@ fn spawn_close_btn(parent: &mut RelatedSpawnerCommands<ChildOf>) {
         .spawn((
             Name::new("Left"),
             Node {
-                width: Val::Px(40.0),
-                min_width: Val::Px(40.0),
+                min_width: Val::Px(65.0),
                 ..Default::default()
             },
         ))

@@ -1,8 +1,11 @@
 use bevy::prelude::*;
 
-use crate::world::{
-    genesis::generate_new_map,
-    renderer::{MapRendererPlugin, tilemap::Tilemap},
+use crate::{
+    config::tile::TileInfoList,
+    world::{
+        genesis::generate_new_map,
+        renderer::{MapRendererPlugin, tilemap::Tilemap},
+    },
 };
 
 pub mod genesis;
@@ -15,7 +18,8 @@ pub struct WorldPlugin;
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MapRendererPlugin)
-            .add_systems(Startup, setup);
+            .add_systems(Startup, setup)
+            .add_systems(PreUpdate, load_tile_info_list);
     }
 }
 
@@ -28,5 +32,26 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         map,
     };
 
+    commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
     commands.spawn((Name::new("Map"), tilemap));
+}
+
+#[derive(Resource)]
+#[allow(unused)]
+struct TileInfoHandle(Handle<TileInfoList>);
+
+fn load_tile_info_list(
+    mut msg_reader: MessageReader<AssetEvent<TileInfoList>>,
+    assets: Res<Assets<TileInfoList>>,
+    mut commands: Commands,
+) {
+    for msg in msg_reader.read() {
+        debug!("Event: {msg:?}");
+        if let &AssetEvent::Added { id } | &AssetEvent::Modified { id } = msg
+            && let Some(tile_info_list) = assets.get(id)
+        {
+            debug!("Loaded tile info list: {tile_info_list:?}");
+            commands.insert_resource(tile_info_list.clone());
+        }
+    }
 }

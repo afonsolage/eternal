@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.17.0-rc.1", features = ["wayland", "file_watcher"] }
 bytemuck = "1.23.2"
-thiserror = "2"
+thiserror = { version = "2", default-features = false }
 
 ron = { version = "0.10", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
