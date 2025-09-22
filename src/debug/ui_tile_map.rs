@@ -1,4 +1,6 @@
 #![allow(unused)]
+use std::ops::Deref;
+
 use bevy::{
     asset::RenderAssetUsages,
     ecs::relationship::RelatedSpawnerCommands,
@@ -10,23 +12,27 @@ use bevy::{
 };
 
 use crate::{
-    config::tile::TileInfoList,
+    config::tile::TileConfigList,
     ui::window::spawn_window,
     world::{
-        map::{self, Map},
+        grid::{self, Grid},
         renderer::tilemap::Tilemap,
+        tile::{self, TileId, TileInfoMap},
     },
 };
 
-pub struct UIDisplayMap;
+pub struct UIDrawTileMap;
 
-impl Plugin for UIDisplayMap {
+impl Plugin for UIDrawTileMap {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_debug_ui).add_systems(
             Update,
-            display_map.run_if(resource_exists::<TileInfoList>.and(
-                resource_changed::<TileInfoList>.or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
-            )),
+            update_tile_map_color_ui.run_if(
+                resource_exists::<TileInfoMap>.and(
+                    resource_changed::<TileInfoMap>
+                        .or(|q: Query<&Grid<TileId>, Changed<Grid<TileId>>>| !q.is_empty()),
+                ),
+            ),
         );
     }
 }
@@ -49,19 +55,21 @@ fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BodyEntity(body));
 }
 
-fn display_map(
+fn update_tile_map_color_ui(
     body: Res<BodyEntity>,
-    q_map: Query<&Tilemap>,
+    q_tiles: Query<&Grid<TileId>>,
+    tile_info: Res<TileInfoMap>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
-    tile_info_list: Res<TileInfoList>,
 ) {
-    let Ok(tilemap) = q_map.single() else { return };
+    let Ok(grid) = q_tiles.single() else {
+        return;
+    };
 
     debug!("Updating map");
 
-    let image = images.add(create_map_image(&tilemap.map, &tile_info_list));
+    let image = images.add(draw_tile_map_colors(grid, tile_info));
 
     let BodyEntity(body) = *body;
     commands.entity(body).despawn_children().with_child((
@@ -79,14 +87,18 @@ fn display_map(
     ));
 }
 
-fn create_map_image(map: &Map, tile_info_list: &TileInfoList) -> Image {
-    let data = map
-        .types
-        .data
+fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_map: Res<TileInfoMap>) -> Image {
+    let data = grid
         .iter()
-        .flat_map(|tt| {
-            let info = &tile_info_list.0[tt.0 as usize];
-            info.map_color
+        .filter_map(|id| {
+            tile_info_map.get(id).or_else(|| {
+                error!("No info found for tile id: {}", id.deref());
+                Some(&tile::NONE_INFO)
+            })
+        })
+        .flat_map(|tile_info| {
+            tile_info
+                .map_color
                 .to_f32_array()
                 .into_iter()
                 .flat_map(|f| f.to_le_bytes())
@@ -98,8 +110,8 @@ fn create_map_image(map: &Map, tile_info_list: &TileInfoList) -> Image {
         texture_descriptor: TextureDescriptor {
             label: None,
             size: Extent3d {
-                width: map::WIDTH as u32,
-                height: map::HEIGHT as u32,
+                width: grid::WIDTH as u32,
+                height: grid::HEIGHT as u32,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,

@@ -2,38 +2,37 @@ use bevy::{asset::AssetLoader, prelude::*};
 
 use serde::Deserialize;
 
-use crate::config::{ConfigAssetLoaderError, color::ConfigColor};
+use crate::{
+    config::{ConfigAssetLoaderError, color::HexColor},
+    world::tile::TileKind,
+};
 
 pub struct ConfigTilePlugin;
 
 impl Plugin for ConfigTilePlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<TileInfoList>()
-            .init_asset_loader::<TileInfoListAssetLoader>();
+        app.init_asset::<TileConfigList>()
+            .init_asset_loader::<TileConfigListAssetLoader>();
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Copy)]
-pub enum TileType {
-    Terrain,
-}
-
 #[derive(Debug, Deserialize, Clone)]
-pub struct TileInfo {
-    pub ty: TileType,
+pub struct TileConfig {
     pub name: String,
-    pub texture: String,
-    pub map_color: ConfigColor,
+    pub kind: TileKind,
+    pub atlas: String,
+    pub atlas_index: u16,
+    pub map_color: HexColor,
 }
 
-#[derive(Asset, TypePath, Debug, Deserialize, Resource, Clone)]
-pub struct TileInfoList(pub Vec<TileInfo>);
+#[derive(Asset, TypePath, Debug, Deserialize, Clone)]
+pub struct TileConfigList(pub Vec<TileConfig>);
 
 #[derive(Default)]
-struct TileInfoListAssetLoader;
+struct TileConfigListAssetLoader;
 
-impl AssetLoader for TileInfoListAssetLoader {
-    type Asset = TileInfoList;
+impl AssetLoader for TileConfigListAssetLoader {
+    type Asset = TileConfigList;
 
     type Settings = ();
 
@@ -44,7 +43,7 @@ impl AssetLoader for TileInfoListAssetLoader {
         reader: &mut dyn bevy::asset::io::Reader,
         _settings: &Self::Settings,
         _load_context: &mut bevy::asset::LoadContext<'_>,
-    ) -> Result<TileInfoList, Self::Error> {
+    ) -> Result<TileConfigList, Self::Error> {
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).await?;
         let tile_list = ron::de::from_bytes(&buffer)?;

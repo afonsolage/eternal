@@ -1,28 +1,32 @@
 use crate::{
     noise::Noise,
-    world::map::{self, Map},
+    world::{
+        grid::{self, Grid},
+        tile::TileId,
+    },
 };
 
-pub fn generate_new_map() -> Map {
+pub fn generate_tile_ids() -> Grid<TileId> {
     let noise = Noise::new();
 
-    let mut map = Map::new();
+    let mut tile_ids: Grid<TileId> = Grid::new();
 
-    map.types
-        .data
+    tile_ids
         .iter_mut()
         .enumerate()
         .map(|(idx, tile_type)| {
             // Row-Major
-            let x = (idx % map::HEIGHT) as i32;
-            let y = (idx / map::HEIGHT) as i32;
+            let x = (idx % grid::HEIGHT) as i32;
+            let y = (idx / grid::HEIGHT) as i32;
             (x, y, tile_type)
         })
         .for_each(|(x, y, tile_type)| {
             let i = noise.stone(x as f32, y as f32);
-            let tt = if i > 0 { 1 } else { 0 };
-            tile_type.0 = tt as u16;
+
+            let id = if i > 0 { 1u16 } else { 0u16 };
+
+            let _ = std::mem::replace(tile_type, TileId::new(id));
         });
 
-    map
+    tile_ids
 }

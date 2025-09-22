@@ -51,8 +51,8 @@ impl Material2d for TilemapChunkMaterial {
     }
 }
 
-pub fn create_empty_tile_indices_image() -> Image {
-    let empty_data = vec![0; TILES_PER_CHUNK.element_product() as usize * size_of::<TilePod>()];
+pub fn init_tile_data() -> Image {
+    let empty_data = vec![0xFF; TILES_PER_CHUNK.element_product() as usize * size_of::<TilePod>()];
     Image {
         data: Some(empty_data),
         texture_descriptor: TextureDescriptor {
