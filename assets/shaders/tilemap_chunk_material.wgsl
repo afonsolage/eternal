@@ -11,6 +11,33 @@
 
 const DISCARD = 65535u;
 
+const PI = 3.14159265359;
+
+/// Rotates the given UV in a clockwise direction.
+/// Each n_rotation is a 90 degrees rotation.
+fn rotate_uv(uv: vec2<f32>, n_rotations: u32) -> vec2<f32> {
+    // We need a rotation pivot point at the center
+    let centered_uv = uv - vec2<f32>(0.5, 0.5);
+
+    // Compute the angle of rotation
+    let angle = PI / 2.0 * f32(n_rotations);
+
+    let cos_angle = cos(angle);
+    let sin_angle = sin(angle);
+
+    // Create a clockwise rotation matrix
+    let rot_mat = mat2x2<f32>(
+        vec2<f32>(cos_angle, sin_angle),
+        vec2<f32>(-sin_angle, cos_angle)
+    );
+
+    // Compute the final rotation
+    let rotated_uv = centered_uv * rot_mat;
+
+    // Restore the original position
+    return rotated_uv + vec2<f32>(0.5, 0.5);
+}
+
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // flip the UV, since shaders works top-down;
@@ -32,7 +59,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // TODO: Add other data in the future
 
     // Calculate the UV relative to the tile;
-    let tile_uv = fract(in.uv * vec2<f32>(tiles_per_chunk));
+    let tile_uv = rotate_uv(fract(in.uv * vec2<f32>(tiles_per_chunk)), 0);
 
     // Calculate the coord on the desired tile texture inside atlas;
     let atlas_uv = vec2<f32>(
