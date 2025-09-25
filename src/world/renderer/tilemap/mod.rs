@@ -17,10 +17,11 @@ use bevy::{
     image::Image,
     log::{debug, error, warn},
     math::{IVec2, U8Vec2, U16Vec2, UVec2, Vec2, primitives::Rectangle},
-    mesh::{Indices, Mesh, Mesh2d, MeshVertexAttribute, PrimitiveTopology},
+    mesh::{Indices, Mesh, Mesh2d, MeshVertexAttribute, PrimitiveTopology, VertexFormat},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
     reflect::Reflect,
+    render::storage::ShaderStorageBuffer,
     sprite_render::{Material2dPlugin, MeshMaterial2d},
     transform::components::Transform,
 };
@@ -33,7 +34,7 @@ use crate::{
     config::tile::TileConfigList,
     world::{
         grid::{self, Grid},
-        tile::{self, TileId, TileInfoMap},
+        tile::{self, TileId, TileInfos},
     },
 };
 
@@ -46,7 +47,7 @@ impl Plugin for TilemapPlugin {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
             .add_systems(
                 Update,
-                update_tilemap_chunk_material.run_if(resource_exists::<TileInfoMap>),
+                (update_tilemap_chunk_material.run_if(resource_exists::<TileInfos>),),
             );
     }
 }
@@ -85,6 +86,10 @@ struct TilemapChunkPos(U16Vec2);
 #[component(immutable)]
 pub struct TilemapChunkMap(HashMap<U16Vec2, Entity>);
 
+#[derive(Default, Component, Reflect)]
+#[component(immutable)]
+pub struct TilemapChunkMaterialHandler(Handle<TilemapChunkMaterial>);
+
 #[derive(Clone)]
 struct TilemapParams {
     parent: Entity,
@@ -98,75 +103,71 @@ fn create_chunk_mesh() -> Mesh {
     // dimension
     let vertex_count = (TILES_PER_CHUNK + U16Vec2::splat(1)).element_product() as usize;
     let mut pos = Vec::with_capacity(vertex_count);
+    let mut uv = Vec::with_capacity(vertex_count);
 
-    for x in 0..=TILES_PER_CHUNK.x {
-        for y in 0..=TILES_PER_CHUNK.y {
+    for y in 0..=TILES_PER_CHUNK.y {
+        for x in 0..=TILES_PER_CHUNK.x {
             // We are offseting each vertex by half tile, so the middle of the tile is always an
             // integer unit, like 10, 10, which would make easier to compute the tile based on a
             // world coord.
             pos.push([x as f32 - 0.5, y as f32 - 0.5, 0.0]);
-        }
-    }
 
-    let mut uv = Vec::with_capacity(vertex_count);
-    let fraction = Vec2::ONE / TILES_PER_CHUNK.as_vec2();
-
-    for x in 0..=TILES_PER_CHUNK.x {
-        for y in 0..=TILES_PER_CHUNK.y {
             uv.push([
-                f32::clamp(x as f32 * fraction.x, 0.0, 1.0),
-                f32::clamp(y as f32 * fraction.y, 0.0, 1.0),
+                f32::clamp(x as f32 / TILES_PER_CHUNK.x as f32, 0.0, 1.0),
+                f32::clamp(y as f32 / TILES_PER_CHUNK.y as f32, 0.0, 1.0),
             ]);
         }
     }
 
-    // Each tile has 4 vertices
-    let indice_count = TILES_PER_CHUNK.element_product() as usize * 4;
+    // Each tile has 2 triangles, with 3 vertex indices each
+    let indice_count = TILES_PER_CHUNK.element_product() as usize * 6;
     let mut indices = Vec::with_capacity(indice_count);
     let row_size = TILES_PER_CHUNK.x + 1;
 
-    let mut i = 0;
-    for x in 0..TILES_PER_CHUNK.x {
-        for y in 0..TILES_PER_CHUNK.y {
+    for y in 0..TILES_PER_CHUNK.y {
+        for x in 0..TILES_PER_CHUNK.x {
+            let mut i = y * row_size + x;
+
             //
-            //  1       2
+            //i+r       i+r+1
             //   +-----+
             //   |     |
             //   |     |
             //   +-----+
-            //  0       3
+            //  i       i+1
             //
             //  Y
             //  |
             //  +---x
 
             indices.push(i);
-            indices.push(i + row_size);
-            indices.push(i + row_size + 1);
             indices.push(i + 1);
+            indices.push(i + row_size + 1);
+
+            indices.push(i + row_size + 1);
+            indices.push(i + row_size);
+            indices.push(i);
 
             i += 1;
         }
     }
 
+    let tile_ids = vec![[0u32; 4]; vertex_count];
+
     Mesh::new(PrimitiveTopology::TriangleList, Default::default())
         .with_inserted_indices(Indices::U16(indices))
         .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, pos)
         .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv)
+        .with_inserted_attribute(material::ATTRIBUTE_TILE_ID, tile_ids)
 }
 
 fn spawn_single_chunk(
     world: &mut DeferredWorld,
     chunk_pos: U16Vec2,
-    params: TilemapParams,
+    tile_size: Vec2,
+    parent: Entity,
+    material: Handle<TilemapChunkMaterial>,
 ) -> Entity {
-    let TilemapParams {
-        parent,
-        atlas_texture,
-        atlas_dims,
-        tile_size,
-    } = params;
-
     let chunk_size = tile_size * TILES_PER_CHUNK.as_vec2();
     let chunk_world_pos = chunk_pos.as_vec2() * chunk_size;
     let chunk_world_pos = chunk_world_pos.extend(0.0);
@@ -177,24 +178,12 @@ fn spawn_single_chunk(
     //let mesh = meshes.add(Rectangle::new(chunk_size.x, chunk_size.y));
     let mesh = meshes.add(create_chunk_mesh());
 
-    // This is the image which will hold all tile data used by shader
-    let mut images = world.resource_mut::<Assets<Image>>();
-    let tiles_data = images.add(material::init_tile_data());
-
-    let mut materials = world.resource_mut::<Assets<TilemapChunkMaterial>>();
-    let material = materials.add(TilemapChunkMaterial {
-        atlas_texture,
-        atlas_dims,
-        tiles_per_chunk: TILES_PER_CHUNK.as_uvec2(),
-        tiles_data,
-    });
-
     let chunk_entity = world
         .commands()
         .spawn((
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            Transform::from_translation(chunk_world_pos),
+            Transform::from_translation(chunk_world_pos).with_scale(tile_size.extend(1.0)),
             TilemapChunkPos(chunk_pos),
             TilemapChunkDirty,
             Name::new(format!("Chunk {chunk_pos}")),
@@ -217,95 +206,61 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
         return;
     };
 
-    let params = TilemapParams {
-        parent: entity,
-        atlas_texture: tile_map.atlas_texture.clone(),
-        atlas_dims: tile_map.atlas_dims,
-        tile_size: tile_map.tile_size,
-    };
+    let tile_size = tile_map.tile_size;
+    let atlas_dims = tile_map.atlas_dims;
+    let atlas_texture = tile_map.atlas_texture.clone();
+
+    let mut materials = world.resource_mut::<Assets<TilemapChunkMaterial>>();
+    let material = materials.add(TilemapChunkMaterial {
+        atlas_texture,
+        atlas_dims,
+        tiles_per_chunk: TILES_PER_CHUNK.as_uvec2(),
+        ..Default::default()
+    });
 
     let chunks_count = U16Vec2::new(grid::WIDTH as u16, grid::HEIGHT as u16) / TILES_PER_CHUNK;
     let chunk_pos_entity_map = (0..chunks_count.x)
         .flat_map(move |x| (0..chunks_count.y).map(move |y| (x, y)))
         .map(|(x, y)| {
             let chunk_pos = U16Vec2::new(x, y);
-            let chunk_entity = spawn_single_chunk(&mut world, chunk_pos, params.clone());
+            let chunk_entity =
+                spawn_single_chunk(&mut world, chunk_pos, tile_size, entity, material.clone());
             (chunk_pos, chunk_entity)
         })
         .collect();
 
-    world
-        .commands()
-        .entity(entity)
-        .insert(TilemapChunkMap(chunk_pos_entity_map));
+    world.commands().entity(entity).insert((
+        TilemapChunkMap(chunk_pos_entity_map),
+        TilemapChunkMaterialHandler(material),
+    ));
 }
 
 #[derive(Component, Default, Debug, Clone, Copy)]
 pub struct TilemapIndex(pub u16);
 
 fn update_tilemap_chunk_material(
-    q_chunks: Query<
-        (
-            Entity,
-            &TilemapChunkPos,
-            &mut MeshMaterial2d<TilemapChunkMaterial>,
-            &ChildOf,
-        ),
-        With<TilemapChunkDirty>,
-    >,
-    q_parents: Query<&Grid<TileId>>,
-    tile_info_map: Res<TileInfoMap>,
+    q_tilemaps: Query<&TilemapChunkMaterialHandler>,
+    tile_info_list: Res<TileInfos>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
-    mut images: ResMut<Assets<Image>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut commands: Commands,
 ) {
-    for (chunk_entity, TilemapChunkPos(chunk_pos), material, &ChildOf(parent)) in q_chunks {
-        let Ok(tile_ids) = q_parents.get(parent) else {
-            error!("Failed to update tilemap material. Tilemap not found.");
+    let pods = tile_info_list
+        .iter()
+        .map(|info| TilePod {
+            atlas_index: info.atlas_index as u32,
+            height: 0.0,
+        })
+        .collect::<Vec<_>>();
+
+    let buffer_handle = buffers.add(ShaderStorageBuffer::from(&pods));
+
+    for TilemapChunkMaterialHandler(material_handler) in q_tilemaps {
+        let Some(material) = materials.get_mut(material_handler.id()) else {
+            error!("Failed to update tilemap material. Material not found.");
             continue;
         };
 
-        // Using `get_mut` to trigger change detection and update this material on render world
-        let Some(material) = materials.get_mut(material.id()) else {
-            warn!("Failed to update tilemap material. Material not found for chunk {chunk_pos}.");
-            continue;
-        };
-
-        let Some(tile_data_image) = images.get_mut(material.tiles_data.id()) else {
-            warn!("Failed to update tilemap material. Tile data not found for chunk {chunk_pos}.");
-            continue;
-        };
-
-        debug!("Updating material of chunk {chunk_pos}.");
-
-        let tile_data_pods: &mut [TilePod] = bytemuck::cast_slice_mut(
-            tile_data_image
-                .data
-                .as_mut()
-                .expect("Material must have been initialized"),
-        );
-
-        let base_grid_pos = chunk_pos * TILES_PER_CHUNK;
-        for x in 0..TILES_PER_CHUNK.x {
-            for y in 0..TILES_PER_CHUNK.y {
-                let grid_pos = base_grid_pos + U16Vec2::new(x, y);
-
-                // Row-Major
-                let grid_index = grid_pos.y as usize * grid::WIDTH + grid_pos.x as usize;
-                let tile_id = tile_ids[grid_index];
-                let tile_info = tile_info_map.get(&tile_id).unwrap_or_else(|| {
-                    error!("Tile info not found for id: {}", *tile_id);
-                    &tile::NONE_INFO
-                });
-
-                let tile_data_index = y as usize * TILES_PER_CHUNK.x as usize + x as usize;
-
-                tile_data_pods[tile_data_index] = TilePod {
-                    index: tile_info.atlas_index,
-                };
-            }
-        }
-
-        commands.entity(chunk_entity).remove::<TilemapChunkDirty>();
+        material.tiles_data = buffer_handle.clone();
     }
 }

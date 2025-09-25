@@ -17,7 +17,7 @@ use crate::{
     world::{
         grid::{self, Grid},
         renderer::tilemap::Tilemap,
-        tile::{self, TileId, TileInfoMap},
+        tile::{self, TileId, TileInfos},
     },
 };
 
@@ -28,8 +28,8 @@ impl Plugin for UIDrawTileMap {
         app.add_systems(Startup, spawn_debug_ui).add_systems(
             Update,
             update_tile_map_color_ui.run_if(
-                resource_exists::<TileInfoMap>.and(
-                    resource_changed::<TileInfoMap>
+                resource_exists::<TileInfos>.and(
+                    resource_changed::<TileInfos>
                         .or(|q: Query<&Grid<TileId>, Changed<Grid<TileId>>>| !q.is_empty()),
                 ),
             ),
@@ -58,7 +58,7 @@ fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn update_tile_map_color_ui(
     body: Res<BodyEntity>,
     q_tiles: Query<&Grid<TileId>>,
-    tile_info: Res<TileInfoMap>,
+    tile_info: Res<TileInfos>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
@@ -87,15 +87,10 @@ fn update_tile_map_color_ui(
     ));
 }
 
-fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_map: Res<TileInfoMap>) -> Image {
+fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_list: Res<TileInfos>) -> Image {
     let data = grid
         .iter()
-        .filter_map(|id| {
-            tile_info_map.get(id).or_else(|| {
-                error!("No info found for tile id: {}", id.deref());
-                Some(&tile::NONE_INFO)
-            })
-        })
+        .map(|&id| tile_info_list.get(id))
         .flat_map(|tile_info| {
             tile_info
                 .map_color

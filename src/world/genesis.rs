@@ -23,7 +23,7 @@ pub fn generate_tile_ids() -> Grid<TileId> {
         .for_each(|(x, y, tile_type)| {
             let i = noise.stone(x as f32, y as f32);
 
-            let id = if i > 0 { 1u16 } else { 0u16 };
+            let id = if i > 0 { 2u16 } else { 1u16 };
 
             let _ = std::mem::replace(tile_type, TileId::new(id));
         });

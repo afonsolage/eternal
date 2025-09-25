@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.17.0-rc.1", features = ["wayland", "file_watcher"] }
+bevy = { version = "0.17.0-rc.2", features = ["wayland", "file_watcher"] }
 bytemuck = "1.23.2"
 thiserror = { version = "2", default-features = false }
 itertools = "0.14"
@@ -18,5 +18,5 @@ bevy-inspector-egui = { version = "0.34.0" }
 noise = "0.9"
 
 [patch.crates-io]
-bevy_egui = { git = "https://github.com/villor/bevy_egui.git", branch = "bevy-0.17"}
-bevy-inspector-egui = { git = "https://github.com/villor/bevy-inspector-egui.git", branch = "bevy-0.17"}
+bevy_egui = { git = "https://github.com/pindash-io/bevy_egui.git", branch = "bevy-0.17"}
+bevy-inspector-egui = { git = "https://github.com/pindash-io/bevy-inspector-egui.git", branch = "bevy-0.17"}

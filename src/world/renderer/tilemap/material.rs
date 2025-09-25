@@ -2,33 +2,45 @@ use bevy::{
     asset::{Asset, Handle, RenderAssetUsages},
     image::{Image, ImageSampler},
     math::UVec2,
+    mesh::{Mesh, MeshVertexAttribute, VertexFormat},
     reflect::Reflect,
-    render::render_resource::{
-        AsBindGroup, Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    render::{
+        render_resource::{
+            AsBindGroup, Extent3d, ShaderType, TextureDescriptor, TextureDimension, TextureFormat,
+            TextureUsages,
+        },
+        storage::ShaderStorageBuffer,
     },
     shader::ShaderRef,
     sprite_render::Material2d,
 };
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{NoUninit, Pod, Zeroable};
 
 use super::TILES_PER_CHUNK;
 
 const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 
+pub const ATTRIBUTE_TILE_ID: MeshVertexAttribute =
+    MeshVertexAttribute::new("TileId", 100000, VertexFormat::Uint32x4);
+
+#[derive(Debug, Default, Clone, Copy, Pod, Zeroable, ShaderType)]
 #[repr(C)]
-#[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct TilePod {
-    pub index: u16,
+    pub atlas_index: u32,
+    pub height: f32,
     // TODO: Add more info here.
 }
 
 impl TilePod {
     pub fn discard() -> Self {
-        Self { index: u16::MAX }
+        Self {
+            atlas_index: 0,
+            ..Default::default()
+        }
     }
 }
 
-#[derive(Asset, AsBindGroup, Clone, Debug, Reflect)]
+#[derive(Asset, Default, AsBindGroup, Clone, Debug, Reflect)]
 pub struct TilemapChunkMaterial {
     /// Texture image of the atlas
     #[texture(0, dimension = "2d")]
@@ -41,13 +53,32 @@ pub struct TilemapChunkMaterial {
     #[uniform(3)]
     pub tiles_per_chunk: UVec2,
     /// The encoded ``TilePod`` to be sent to fragment shader
-    #[texture(4, sample_type = "u_int")]
-    pub tiles_data: Handle<Image>,
+    #[storage(4, read_only)]
+    pub tiles_data: Handle<ShaderStorageBuffer>,
 }
 
 impl Material2d for TilemapChunkMaterial {
     fn fragment_shader() -> ShaderRef {
         FRAGMENT_SHADER_PATH.into()
+    }
+
+    fn vertex_shader() -> ShaderRef {
+        FRAGMENT_SHADER_PATH.into()
+    }
+
+    fn specialize(
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
+        key: bevy::sprite_render::Material2dKey<Self>,
+    ) -> bevy::ecs::error::Result<(), bevy::render::render_resource::SpecializedMeshPipelineError>
+    {
+        let vertex_layout = layout.0.get_layout(&[
+            Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
+            Mesh::ATTRIBUTE_UV_0.at_shader_location(1),
+            ATTRIBUTE_TILE_ID.at_shader_location(2),
+        ])?;
+        descriptor.vertex.buffers = vec![vertex_layout];
+        Ok(())
     }
 }
 

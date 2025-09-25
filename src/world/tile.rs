@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData};
 
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::prelude::*;
 use serde::Deserialize;
 
 pub const NONE_INFO: TileInfo = TileInfo {
@@ -43,10 +43,14 @@ pub struct TileInfo {
 }
 
 #[derive(Debug, Default, Clone, Reflect, Deref, DerefMut, Resource)]
-pub struct TileInfoMap(HashMap<TileId, TileInfo>);
+pub struct TileInfos(Vec<TileInfo>);
 
-impl TileInfoMap {
-    pub fn new(map: HashMap<TileId, TileInfo>) -> Self {
-        Self(map)
+impl TileInfos {
+    pub fn new(list: Vec<TileInfo>) -> Self {
+        Self(list)
+    }
+
+    pub fn get(&self, id: TileId) -> &TileInfo {
+        &self.0[id.0 as usize]
     }
 }

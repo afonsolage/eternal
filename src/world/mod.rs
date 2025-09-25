@@ -1,11 +1,11 @@
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::prelude::*;
 
 use crate::{
     config::tile::{TileConfig, TileConfigList},
     world::{
         genesis::generate_tile_ids,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
-        tile::{TileId, TileInfo, TileInfoMap},
+        tile::{TileInfo, TileInfos},
     },
 };
 
@@ -53,11 +53,10 @@ fn process_tile_info_list(
         {
             debug!("Loaded tile config list:");
 
-            let map = tile_config_list
+            let mut info_list = tile_config_list
                 .0
                 .iter()
-                .enumerate()
-                .map(|(idx, config)| {
+                .map(|config| {
                     debug!("  - {config:?}");
 
                     let TileConfig {
@@ -68,22 +67,19 @@ fn process_tile_info_list(
                         map_color,
                     } = config;
 
-                    let info = TileInfo {
+                    TileInfo {
                         name: name.clone().into(),
                         kind: *kind,
                         atlas: asset_server.load(atlas),
                         atlas_index: *atlas_index,
                         map_color: map_color.0,
-                    };
-
-                    // id 0 is reserved for empty/none tile
-                    let id = TileId::new(idx as u16);
-                    (id, info)
+                    }
                 })
-                .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
-                .collect::<HashMap<_, _>>();
+                .collect::<Vec<_>>();
 
-            commands.insert_resource(TileInfoMap::new(map));
+            info_list.insert(0, tile::NONE_INFO);
+
+            commands.insert_resource(TileInfos::new(info_list));
         }
     }
 }
