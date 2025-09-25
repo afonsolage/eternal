@@ -1,7 +1,7 @@
 #![allow(unused)]
 use bevy::{
     app::{Plugin, Update},
-    asset::{Assets, Handle},
+    asset::{Assets, Handle, RenderAssetUsages},
     camera::visibility::{Visibility, VisibilityClass, add_visibility_class},
     ecs::{
         component::Component,
@@ -17,7 +17,7 @@ use bevy::{
     image::Image,
     log::{debug, error, warn},
     math::{IVec2, U8Vec2, U16Vec2, UVec2, Vec2, primitives::Rectangle},
-    mesh::{Mesh, Mesh2d},
+    mesh::{Indices, Mesh, Mesh2d, MeshVertexAttribute, PrimitiveTopology},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
     reflect::Reflect,
@@ -93,6 +93,68 @@ struct TilemapParams {
     tile_size: Vec2,
 }
 
+fn create_chunk_mesh() -> Mesh {
+    // Each tile will have 4 shared vertex, so we just need to extend the tile count by 1 in each
+    // dimension
+    let vertex_count = (TILES_PER_CHUNK + U16Vec2::splat(1)).element_product() as usize;
+    let mut pos = Vec::with_capacity(vertex_count);
+
+    for x in 0..=TILES_PER_CHUNK.x {
+        for y in 0..=TILES_PER_CHUNK.y {
+            // We are offseting each vertex by half tile, so the middle of the tile is always an
+            // integer unit, like 10, 10, which would make easier to compute the tile based on a
+            // world coord.
+            pos.push([x as f32 - 0.5, y as f32 - 0.5, 0.0]);
+        }
+    }
+
+    let mut uv = Vec::with_capacity(vertex_count);
+    let fraction = Vec2::ONE / TILES_PER_CHUNK.as_vec2();
+
+    for x in 0..=TILES_PER_CHUNK.x {
+        for y in 0..=TILES_PER_CHUNK.y {
+            uv.push([
+                f32::clamp(x as f32 * fraction.x, 0.0, 1.0),
+                f32::clamp(y as f32 * fraction.y, 0.0, 1.0),
+            ]);
+        }
+    }
+
+    // Each tile has 4 vertices
+    let indice_count = TILES_PER_CHUNK.element_product() as usize * 4;
+    let mut indices = Vec::with_capacity(indice_count);
+    let row_size = TILES_PER_CHUNK.x + 1;
+
+    let mut i = 0;
+    for x in 0..TILES_PER_CHUNK.x {
+        for y in 0..TILES_PER_CHUNK.y {
+            //
+            //  1       2
+            //   +-----+
+            //   |     |
+            //   |     |
+            //   +-----+
+            //  0       3
+            //
+            //  Y
+            //  |
+            //  +---x
+
+            indices.push(i);
+            indices.push(i + row_size);
+            indices.push(i + row_size + 1);
+            indices.push(i + 1);
+
+            i += 1;
+        }
+    }
+
+    Mesh::new(PrimitiveTopology::TriangleList, Default::default())
+        .with_inserted_indices(Indices::U16(indices))
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, pos)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv)
+}
+
 fn spawn_single_chunk(
     world: &mut DeferredWorld,
     chunk_pos: U16Vec2,
@@ -112,7 +174,8 @@ fn spawn_single_chunk(
     // A simple rectagle mesh should be enough.
     // TODO: Check if this should be cached in the future.
     let mut meshes = world.resource_mut::<Assets<Mesh>>();
-    let mesh = meshes.add(Rectangle::new(chunk_size.x, chunk_size.y));
+    //let mesh = meshes.add(Rectangle::new(chunk_size.x, chunk_size.y));
+    let mesh = meshes.add(create_chunk_mesh());
 
     // This is the image which will hold all tile data used by shader
     let mut images = world.resource_mut::<Assets<Image>>();

@@ -113,41 +113,68 @@ enum.
 
 ---
 
-## Phase 3: Alternative - Shader-Based Edge Blending
+## Phase 3: Advanced Shader-Based Blending
 
-To avoid the massive art workload of creating 47-variant blob tiles for every terrain type.
+To avoid the massive art workload of creating blob tiles and to achieve smooth, procedural transitions, a shader-based approach is recommended. There are two main levels of sophistication.
 
-### 1. The Technique
+### 3.1. Approach A: Texture Splatting with Masks
 
-This approach is a 2D version of **Texture Splatting**.
-1.  **Art Assets:** Use seamless, tiling base textures for each terrain type (e.g.,
-    `grass.png`, `sand.png`) and **one** generic 47-variant blob *mask* atlas.
-2.  **Game Logic:** The CPU determines which two textures to blend (e.g., grass and sand) and
-    which mask to use based on neighbors.
-3.  **Custom Shader:** A custom WGSL shader receives the two base textures and the mask. It
-    then blends the two textures pixel-by-pixel using the mask value as the factor (e.g.,
-    `final_color = mix(color_A, color_B, mask_value);`).
+This is a simpler shader technique that replaces blob art with a generic blob mask.
 
-### 2. Pros & Cons
+#### The Technique
+
+1.  **Art Assets:** Use seamless, tiling base textures for each terrain type (e.g., `grass.png`, `sand.png`) and **one** generic 47-variant blob *mask* atlas.
+2.  **Game Logic:** The CPU determines which two textures to blend (e.g., grass and sand) and which mask to use based on neighbors.
+3.  **Custom Shader:** A custom WGSL shader receives the two base textures and the mask. It then blends the two textures pixel-by-pixel using the mask value as the factor (e.g., `final_color = mix(color_A, color_B, mask_value);`).
+
+#### Pros & Cons
+
+*   **Pros:** Reduces art requirements (`N` terrains need `N` textures + 1 mask atlas, not `N * 47` tile atlases).
+*   **Cons:** Blends can look generic. Most importantly, **it does not solve complex edge cases**, as it's difficult to manage blending between 3 or 4 different terrain types at a single corner.
+
+---
+
+### 3.2. Approach B: Height-Map Blending (Recommended)
+
+This is a more advanced and robust technique that provides superior blending quality and elegantly solves the multi-terrain corner problem. This is the recommended approach.
+
+#### The Technique
+
+1.  **Art Assets:** Requires only **one** seamless, tiling texture for each terrain type (e.g., `grass.png`, `sand.png`, `water.png`). No transition tiles or masks are needed.
+
+2.  **Data-Driven Heights:** In the tile configuration `.ron` file, each terrain type is assigned a numeric `height` that defines its blending priority.
+    ```rust,ignore
+    // assets/config/tiles.ron
+    (
+      "water": ( height: 0.1, ... ),
+      "sand":  ( height: 0.2, ... ),
+      "grass": ( height: 0.5, ... ),
+      "rock":  ( height: 0.8, ... ),
+    )
+    ```
+
+3.  **Mesh Generation:** The world is divided into chunks for frustum culling. However, each chunk's mesh is no longer a single quad. Instead, it's a grid of quads (one per tile).
+    *   For a `16x16` tile chunk, a mesh with `17x17` vertices is generated.
+    *   For each vertex, the CPU looks at the 4 terrain tiles that meet at its location in the world grid.
+    *   It fetches the `height` for each of these 4 terrains and passes them to the vertex shader as a custom attribute (e.g., `vec4<f32>`).
+
+4.  **Custom Shader (WGSL):**
+    *   The vertex shader passes the corner heights to the fragment shader. The GPU automatically interpolates these values across the face of the tile quad.
+    *   The fragment shader receives the interpolated heights and calculates a single `pixel_height` for that specific fragment using bilinear interpolation.
+    *   It then uses a series of `if/else if` checks to determine which two terrain layers the `pixel_height` falls between (e.g., between `HEIGHT_SAND` and `HEIGHT_GRASS`).
+    *   It normalizes the height within that specific range to a `0.0-1.0` value and uses `smoothstep` to create a clean blend factor.
+    *   Finally, it samples the two corresponding terrain textures and `mix()`es them.
+
+#### Pros & Cons
 
 *   **Pros:**
-    *   **Massive Art Scalability:** The primary advantage. `N` terrains require only `N` base
-        textures, not `N * 47`.
-    *   **Flexibility:** New terrains are easy to add.
-    *   **Low Memory Footprint.**
+    *   **Superior Blending:** Elegantly and correctly solves the 3- and 4-terrain corner blending problem.
+    *   **Minimal Art Assets:** The most art-efficient method possible (`N` terrains require only `N` base textures).
+    *   **Highly Scalable & Data-Driven:** New terrains can be added simply by providing a texture and a `height` value in the configuration file.
+    *   **High Performance:** Fully compatible with chunk-based frustum culling.
 *   **Cons:**
-    *   **Visual Fidelity:** Blends can look generic or "blurry" compared to hand-authored
-        art.
-    *   **Shader Complexity:** Requires writing a custom Bevy `Material` and WGSL shader.
-    *   **Performance:** Increases texture lookups from 1 to 3 per tile.
-    *   **Complex Edge Cases:** Handling corners where 3 or 4 terrains meet is difficult.
+    *   **Implementation Complexity:** This is the most complex approach, requiring more intricate mesh generation logic on the CPU and a more sophisticated shader.
 
-### 3. Mitigation & Verdict
+### Verdict
 
-The "blurry" look can be improved in the shader by using `step()` or `smoothstep()` for
-harder, more stylized edges.
-
-**Verdict:** This is an excellent, professional-grade solution for a proc-gen game where art
-scalability is a higher priority than hand-polished transitions. It is highly recommended to
-**prototype** this technique on a small scale to validate the visual style before full
-implementation.
+The **Height-Map Blending** technique is the definitive professional-grade solution for a procedurally generated game where art scalability and high-quality, complex transitions are a priority. While more complex to implement, it solves the critical limitations of all other approaches. It is highly recommended to **prototype** this technique on a small scale to validate the implementation before a full rollout.
