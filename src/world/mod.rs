@@ -51,8 +51,6 @@ fn process_tile_info_list(
         if let &AssetEvent::Added { id } | &AssetEvent::Modified { id } = msg
             && let Some(tile_config_list) = assets.get(id)
         {
-            debug!("Loaded tile config list:");
-
             let mut info_list = tile_config_list
                 .0
                 .iter()
@@ -78,6 +76,8 @@ fn process_tile_info_list(
                 .collect::<Vec<_>>();
 
             info_list.insert(0, tile::NONE_INFO);
+
+            debug!("Updated tile infos: {info_list:?}");
 
             commands.insert_resource(TileInfos::new(info_list));
         }

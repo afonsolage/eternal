@@ -7,23 +7,24 @@ pub const NONE_INFO: TileInfo = TileInfo {
     name: Cow::Borrowed("NONE"),
     kind: TileKind::Terrain,
     atlas: Handle::Uuid(AssetId::<Image>::DEFAULT_UUID, PhantomData),
-    atlas_index: u16::MAX,
+    atlas_index: 0,
     map_color: Srgba::NONE,
 };
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Hash, Deref, Reflect)]
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, PartialOrd, Hash, Deref, Reflect)]
 #[repr(transparent)]
 pub struct TileId(u16);
 
 impl TileId {
+    pub const NONE: Self = Self(0);
+
     pub fn new(id: u16) -> Self {
         Self(id)
     }
-}
 
-impl Default for TileId {
-    fn default() -> Self {
-        Self(u16::MAX)
+    #[inline]
+    pub fn id(&self) -> u16 {
+        self.0
     }
 }
 

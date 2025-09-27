@@ -10,7 +10,10 @@ use bevy::{
         lifecycle::HookContext,
         name::Name,
         query::With,
-        schedule::{IntoScheduleConfigs, common_conditions::resource_exists},
+        schedule::{
+            IntoScheduleConfigs,
+            common_conditions::{resource_exists, resource_exists_and_changed},
+        },
         system::{Commands, Query, Res, ResMut},
         world::DeferredWorld,
     },
@@ -39,6 +42,8 @@ use crate::{
 };
 
 const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);
+// We need one vertex more at the end to form a quad
+const VERTICES_PER_CHUNK: U16Vec2 = U16Vec2::new(TILES_PER_CHUNK.x + 1, TILES_PER_CHUNK.y + 1);
 
 pub struct TilemapPlugin;
 
@@ -47,7 +52,10 @@ impl Plugin for TilemapPlugin {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
             .add_systems(
                 Update,
-                (update_tilemap_chunk_material.run_if(resource_exists::<TileInfos>),),
+                (
+                    update_tilemap_chunk_material.run_if(resource_exists_and_changed::<TileInfos>),
+                    update_tilemap_chunk_mesh,
+                ),
             );
     }
 }
@@ -101,12 +109,12 @@ struct TilemapParams {
 fn create_chunk_mesh() -> Mesh {
     // Each tile will have 4 shared vertex, so we just need to extend the tile count by 1 in each
     // dimension
-    let vertex_count = (TILES_PER_CHUNK + U16Vec2::splat(1)).element_product() as usize;
+    let vertex_count = VERTICES_PER_CHUNK.element_product() as usize;
     let mut pos = Vec::with_capacity(vertex_count);
     let mut uv = Vec::with_capacity(vertex_count);
 
-    for y in 0..=TILES_PER_CHUNK.y {
-        for x in 0..=TILES_PER_CHUNK.x {
+    for y in 0..VERTICES_PER_CHUNK.y {
+        for x in 0..VERTICES_PER_CHUNK.x {
             // We are offseting each vertex by half tile, so the middle of the tile is always an
             // integer unit, like 10, 10, which would make easier to compute the tile based on a
             // world coord.
@@ -122,11 +130,11 @@ fn create_chunk_mesh() -> Mesh {
     // Each tile has 2 triangles, with 3 vertex indices each
     let indice_count = TILES_PER_CHUNK.element_product() as usize * 6;
     let mut indices = Vec::with_capacity(indice_count);
-    let row_size = TILES_PER_CHUNK.x + 1;
+    let row_size = VERTICES_PER_CHUNK.x;
 
     for y in 0..TILES_PER_CHUNK.y {
         for x in 0..TILES_PER_CHUNK.x {
-            let mut i = y * row_size + x;
+            let i = y * row_size + x;
 
             //
             //i+r       i+r+1
@@ -144,11 +152,9 @@ fn create_chunk_mesh() -> Mesh {
             indices.push(i + 1);
             indices.push(i + row_size + 1);
 
+            indices.push(i);
             indices.push(i + row_size + 1);
             indices.push(i + row_size);
-            indices.push(i);
-
-            i += 1;
         }
     }
 
@@ -261,6 +267,48 @@ fn update_tilemap_chunk_material(
             continue;
         };
 
-        material.tiles_data = buffer_handle.clone();
+        material.tiles_info = buffer_handle.clone();
+    }
+}
+
+const CORNER_DIRS: [IVec2; 4] = [
+    IVec2::new(0, 0),   // Top Right
+    IVec2::new(-1, 0),  // Top Left
+    IVec2::new(-1, -1), // Bottom Left
+    IVec2::new(0, -1),  // Bottom Right
+];
+fn update_tilemap_chunk_mesh(
+    q_chunks: Query<(Entity, &Mesh2d, &TilemapChunkPos, &ChildOf), With<TilemapChunkDirty>>,
+    q_tilemaps: Query<(&Grid<TileId>, &Tilemap)>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut commands: Commands,
+) {
+    for (entity, mesh_handle, &TilemapChunkPos(chunk_pos), &ChildOf(parent)) in q_chunks {
+        commands.entity(entity).remove::<TilemapChunkDirty>();
+
+        let Ok((grid, tilemap)) = q_tilemaps.get(parent) else {
+            warn!("Failed to update chunk mesh {chunk_pos}: Tilemap not found.");
+            continue;
+        };
+
+        debug!("Updating mesh of chunk {chunk_pos}");
+
+        let vertex_count = (VERTICES_PER_CHUNK).element_product() as usize;
+        let grid_base_pos = (chunk_pos * TILES_PER_CHUNK).as_ivec2();
+
+        let mut tile_ids = (0..vertex_count)
+            .map(|index| {
+                let x = index as i32 % VERTICES_PER_CHUNK.x as i32;
+                let y = index as i32 / VERTICES_PER_CHUNK.x as i32;
+                let vertex_pos = grid_base_pos + IVec2::new(x, y);
+
+                CORNER_DIRS
+                    .map(|dir| grid.try_get(vertex_pos + dir).unwrap_or(TileId::NONE).id() as u32)
+            })
+            .collect::<Vec<_>>();
+
+        if let Some(mesh) = meshes.get_mut(mesh_handle.id()) {
+            mesh.insert_attribute(material::ATTRIBUTE_TILE_ID, tile_ids);
+        }
     }
 }

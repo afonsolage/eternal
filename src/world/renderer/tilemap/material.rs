@@ -54,7 +54,7 @@ pub struct TilemapChunkMaterial {
     pub tiles_per_chunk: UVec2,
     /// The encoded ``TilePod`` to be sent to fragment shader
     #[storage(4, read_only)]
-    pub tiles_data: Handle<ShaderStorageBuffer>,
+    pub tiles_info: Handle<ShaderStorageBuffer>,
 }
 
 impl Material2d for TilemapChunkMaterial {
