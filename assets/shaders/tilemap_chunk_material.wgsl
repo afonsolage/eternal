@@ -9,7 +9,39 @@
 // Contains info about each individual tile
 @group(2) @binding(5) var tiles_data: texture_2d<u32>;
 
-const DISCARD = 65535u;
+const DISCARD: TileData = TileData(65535u, 0.0);
+
+struct TileData {
+    atlas_index: u32,
+    height: f32
+}
+
+fn get_atlas_index_color(atlas_index: u32, uv: vec2<f32>) -> vec4<f32> {
+    let atlas_uv = vec2<f32>(
+        f32(atlas_index / atlas_dims.x),
+        f32(atlas_index % atlas_dims.x)
+    );
+
+    let final_uv = (atlas_uv + uv) / vec2<f32>(atlas_dims);
+
+    return textureSample(atlas_texture, atlas_sampler, final_uv);
+}
+
+fn get_tile_data(tile_pos: vec2<i32>) -> TileData {
+    let dims = vec2<i32>(textureDimensions(tiles_data));
+    if (tile_pos.x < 0 || tile_pos.x >= dims.x || tile_pos.y < 0 || tile_pos.y >= dims.y) {
+        return DISCARD;
+    }
+
+    // Get the info about current tile
+    let tile_data = textureLoad(tiles_data, tile_pos, 0);
+
+    // Get the desired atlas texture index to render on current tile;
+    let atlas_index = tile_data.x;
+    let height = f32(tile_data.y);
+
+    return TileData(atlas_index, height);
+}
 
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
@@ -22,38 +54,50 @@ struct VertexOutput {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let grid_pos = vec2<f32>(in.world_pos.x, in.world_pos.y) / tile_size;
 
-    // flip the UV, since shaders works top-down;
-    let flipped_uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-
     // Calculate the current tile position in the chunk mesh;
-    //let tile_pos = vec2<u32>(floor(flipped_uv * vec2<f32>(tiles_per_chunk)))
-    let tile_pos = vec2<u32>(floor(grid_pos));
+    let tile_pos = vec2<i32>(floor(grid_pos));
 
     // Get the info about current tile
-    let tile_data = textureLoad(tiles_data, tile_pos, 0);
+    let tile_data = get_tile_data(tile_pos);
 
-    // Get the desired atlas texture index to render on current tile;
-    let tile_index = tile_data.x;
-    let tile_height = tile_data.y;
-
-    if (tile_index == DISCARD) {
-        discard;
+    if (tile_data.atlas_index == DISCARD.atlas_index) {
+        return vec4<f32>(1.0, 0.0, 1.0, 1.0);
     }
 
-    // TODO: Add other data in the future
+    let center_uv = fract(grid_pos);
+    let center_pos = tile_pos;
 
-    // Calculate the UV relative to the tile;
-    //let tile_uv = fract(in.uv * vec2<f32>(tiles_per_chunk));
-    let tile_uv = fract(grid_pos);
+    var final_color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    var total_influence = 0.0;
 
-    // Calculate the coord on the desired tile texture inside atlas;
-    let atlas_uv = vec2<f32>(
-        f32(tile_index % atlas_dims.y),
-        f32(tile_index / atlas_dims.y)
-    );
+    for (var y: i32 = -1; y <= 1; y = y + 1) {
+        for (var x: i32 = -1; x <= 1; x = x + 1) {
+            let xy = vec2<i32>(x, y);
+            let nbor_pos = center_pos + xy;
 
-    // Compute the final coords and convert it to UV (0.0, 0.0) to (1.0, 1.0)
-    let final_uv = (atlas_uv + tile_uv) / vec2<f32>(atlas_dims);
+            let nbor_tile_data = get_tile_data(nbor_pos);
 
-    return textureSample(atlas_texture, atlas_sampler, final_uv);
+            if (nbor_tile_data.atlas_index == DISCARD.atlas_index) {
+                continue;
+            }
+            
+            let nbor_uv_center = center_uv - vec2<f32>(xy);
+            let dist = length(nbor_uv_center);
+
+            let linear_influence = max(0.0, 1.0 - dist);
+
+            let nbor_influence = linear_influence * linear_influence * (3.0 - 2.0 * linear_influence);
+
+            let nbor_color = get_atlas_index_color(nbor_tile_data.atlas_index, center_uv);
+
+            final_color += nbor_color * nbor_influence; 
+            total_influence += nbor_influence;
+        }
+    }
+
+    if (total_influence > 0.0) {
+        return final_color / total_influence;
+    } else {
+        discard;
+    }
 }
