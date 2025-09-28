@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::{
     config::{ConfigAssetLoaderError, color::HexColor},
-    world::tile::TileKind,
+    world::tile::{BlendTech, TileKind},
 };
 
 pub struct ConfigTilePlugin;
@@ -23,6 +23,7 @@ pub struct TileConfig {
     pub atlas: String,
     pub atlas_index: u16,
     pub map_color: HexColor,
+    pub blend_tech: Option<BlendTech>,
 }
 
 #[derive(Asset, TypePath, Debug, Deserialize, Clone)]
@@ -46,7 +47,12 @@ impl AssetLoader for TileConfigListAssetLoader {
     ) -> Result<TileConfigList, Self::Error> {
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).await?;
-        let tile_list = ron::de::from_bytes(&buffer)?;
+
+        use ron::extensions::Extensions;
+        let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+
+        let tile_list = opts.from_bytes(&buffer)?;
+
         Ok(tile_list)
     }
 }

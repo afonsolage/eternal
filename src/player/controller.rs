@@ -29,8 +29,8 @@ impl Default for PlayerController {
     fn default() -> Self {
         Self {
             move_speed: 100.0,
-            zoom_speed: 0.1,
-            pan_speed: 0.5,
+            zoom_speed: 0.2,
+            pan_speed: 0.8,
         }
     }
 }
@@ -85,7 +85,7 @@ fn zoom_player(
 fn pan_camera(
     mut motion_evr: MessageReader<MouseMotion>,
     input: Res<ButtonInput<MouseButton>>,
-    mut camera_query: Query<&mut Transform, With<Camera2d>>,
+    mut camera_query: Query<(&mut Transform, &Projection), With<Camera2d>>,
     player_query: Query<&PlayerController>,
 ) {
     if !input.pressed(MouseButton::Middle) {
@@ -97,9 +97,15 @@ fn pan_camera(
     };
 
     for ev in motion_evr.read() {
-        for mut transform in camera_query.iter_mut() {
-            transform.translation.x -= ev.delta.x * controller.pan_speed;
-            transform.translation.y += ev.delta.y * controller.pan_speed;
+        for (mut transform, projection) in camera_query.iter_mut() {
+            let scale = if let Projection::Orthographic(ortho) = projection {
+                ortho.scale
+            } else {
+                1.0
+            };
+
+            transform.translation.x -= ev.delta.x * controller.pan_speed * scale;
+            transform.translation.y += ev.delta.y * controller.pan_speed * scale;
         }
     }
 }

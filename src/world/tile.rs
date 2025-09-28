@@ -9,6 +9,7 @@ pub const NONE_INFO: TileInfo = TileInfo {
     atlas: Handle::Uuid(AssetId::<Image>::DEFAULT_UUID, PhantomData),
     atlas_index: u16::MAX,
     map_color: Srgba::NONE,
+    blend_tech: BlendTech::None,
 };
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Hash, Deref, Reflect)]
@@ -33,6 +34,13 @@ pub enum TileKind {
     Terrain,
 }
 
+#[derive(Debug, Default, Clone, Copy, Reflect, Deserialize)]
+pub enum BlendTech {
+    #[default]
+    None,
+    Weight(u16),
+}
+
 #[derive(Debug, Default, Clone, Reflect)]
 pub struct TileInfo {
     pub name: Cow<'static, str>,
@@ -40,6 +48,7 @@ pub struct TileInfo {
     pub atlas: Handle<Image>,
     pub atlas_index: u16,
     pub map_color: Srgba,
+    pub blend_tech: BlendTech,
 }
 
 #[derive(Debug, Default, Clone, Reflect, Deref, DerefMut, Resource)]

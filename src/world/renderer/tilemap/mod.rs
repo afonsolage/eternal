@@ -242,7 +242,10 @@ fn update_tilemap_chunk_material(
                 }
 
                 pod.index = info.atlas_index;
-                pod.height = 0; // TODO: Set height;
+                pod.weight = match info.blend_tech {
+                    tile::BlendTech::None => u16::MAX,
+                    tile::BlendTech::Weight(w) => w,
+                }; // TODO: Set height;
             });
     }
 }

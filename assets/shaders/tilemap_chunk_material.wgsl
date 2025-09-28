@@ -9,11 +9,12 @@
 // Contains info about each individual tile
 @group(2) @binding(5) var tiles_data: texture_2d<u32>;
 
-const DISCARD: TileData = TileData(65535u, 0.0);
+const WEIGHT_NONE = 65535u;
+const DISCARD: TileData = TileData(65535u, 0u);
 
 struct TileData {
     atlas_index: u32,
-    height: f32
+    weight: u32,
 }
 
 fn get_atlas_index_color(atlas_index: u32, uv: vec2<f32>) -> vec4<f32> {
@@ -31,7 +32,8 @@ fn get_atlas_index_color(atlas_index: u32, uv: vec2<f32>) -> vec4<f32> {
 
 fn get_tile_data(tile_pos: vec2<i32>) -> TileData {
     let dims = vec2<i32>(textureDimensions(tiles_data));
-    if (tile_pos.x < 0 || tile_pos.x >= dims.x || tile_pos.y < 0 || tile_pos.y >= dims.y) {
+
+    if (tile_pos.x < 0 || tile_pos.x > dims.x || tile_pos.y < 0 || tile_pos.y > dims.y) {
         return DISCARD;
     }
 
@@ -40,9 +42,9 @@ fn get_tile_data(tile_pos: vec2<i32>) -> TileData {
 
     // Get the desired atlas texture index to render on current tile;
     let atlas_index =  data.r;
-    let height = f32(data.g);
+    let weight = data.g;
 
-    return TileData(atlas_index, height);
+    return TileData(atlas_index, weight);
 }
 
 fn blend_neighbors(grid_pos: vec2<f32>) -> vec4<f32> {
@@ -64,13 +66,13 @@ fn blend_neighbors(grid_pos: vec2<f32>) -> vec4<f32> {
             if (nbor_tile_data.atlas_index == DISCARD.atlas_index) {
                 continue;
             }
-            
+
             let nbor_uv_center = center_uv - vec2<f32>(xy);
-            let dist = length(nbor_uv_center);
 
-            let linear_influence = max(0.0, 1.0 - dist);
+            let nbor_influence_x = max(0.0, 1.0 - abs(nbor_uv_center.x));
+            let nbor_influence_y = max(0.0, 1.0 - abs(nbor_uv_center.y));
 
-            let nbor_influence = linear_influence * linear_influence * (3.0 - 2.0 * linear_influence);
+            let nbor_influence = nbor_influence_x * nbor_influence_y * f32(nbor_tile_data.weight);
 
             let nbor_color = get_atlas_index_color(nbor_tile_data.atlas_index, center_uv);
 
@@ -95,7 +97,14 @@ struct VertexOutput {
 
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    let grid_pos = vec2<f32>(in.world_pos.x, in.world_pos.y) / tile_size;
+    let dims = textureDimensions(tiles_data);
+
+    var grid_pos = vec2<f32>(in.world_pos.x, in.world_pos.y) / tile_size;
+    grid_pos = clamp(
+         grid_pos,
+         vec2<f32>(0.0),
+         vec2<f32>(dims),
+    );
 
     // Calculate the current tile position in the chunk mesh;
     let tile_pos = vec2<i32>(floor(grid_pos));
@@ -104,9 +113,8 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let tile_data = get_tile_data(tile_pos);
 
     if (tile_data.atlas_index == DISCARD.atlas_index) {
-        return vec4<f32>(1.0, 0.0, 1.0, 1.0);
+        return vec4<f32>(1.0, 0.0, 0.0, 1.0);
     }
 
     return blend_neighbors(grid_pos);
-    //return get_atlas_index_color(tile_data.atlas_index, fract(grid_pos));
 }

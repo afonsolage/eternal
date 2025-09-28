@@ -62,6 +62,7 @@ fn process_tile_info_list(
                         atlas,
                         atlas_index,
                         map_color,
+                        blend_tech,
                     } = config;
 
                     let info = TileInfo {
@@ -70,6 +71,7 @@ fn process_tile_info_list(
                         atlas: asset_server.load(atlas),
                         atlas_index: *atlas_index,
                         map_color: map_color.0,
+                        blend_tech: blend_tech.unwrap_or_default(),
                     };
 
                     let id = TileId::new(idx as u16);
