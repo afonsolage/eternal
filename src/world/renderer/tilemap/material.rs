@@ -20,8 +20,8 @@ const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct TilePod {
-    pub index: u16,
-    pub height: u16, // TODO: Add more info here.
+    pub index: u16,  // Red channel
+    pub height: u16, // Green channel.
 }
 
 impl TilePod {

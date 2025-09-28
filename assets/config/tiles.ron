@@ -25,14 +25,14 @@
       kind: Terrain,
       name: "STONE",
       atlas: "sheets/terrain.png",
-      atlas_index: 12,
+      atlas_index: 14,
       map_color: "#808080",
     ),
     (
       kind: Terrain,
       name: "SAND",
       atlas: "sheets/terrain.png",
-      atlas_index: 11,
+      atlas_index: 12,
       map_color: "#ffcc66",
     ),
   ]

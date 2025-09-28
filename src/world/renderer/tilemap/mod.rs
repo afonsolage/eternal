@@ -236,6 +236,11 @@ fn update_tilemap_chunk_material(
             .for_each(|(idx, pod)| {
                 let id = grid[idx];
                 let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
+
+                if idx < 10 {
+                    debug!("[{idx}] {id:?} = {info:?}");
+                }
+
                 pod.index = info.atlas_index;
                 pod.height = 0; // TODO: Set height;
             });

@@ -51,15 +51,11 @@ fn process_tile_info_list(
         if let &AssetEvent::Added { id } | &AssetEvent::Modified { id } = msg
             && let Some(tile_config_list) = assets.get(id)
         {
-            debug!("Loaded tile config list:");
-
             let map = tile_config_list
                 .0
                 .iter()
                 .enumerate()
                 .map(|(idx, config)| {
-                    debug!("  - {config:?}");
-
                     let TileConfig {
                         name,
                         kind,
@@ -76,12 +72,13 @@ fn process_tile_info_list(
                         map_color: map_color.0,
                     };
 
-                    // id 0 is reserved for empty/none tile
                     let id = TileId::new(idx as u16);
                     (id, info)
                 })
                 .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
                 .collect::<HashMap<_, _>>();
+
+            debug!("Loaded tile info list: {map:?}");
 
             commands.insert_resource(TileInfoMap::new(map));
         }
