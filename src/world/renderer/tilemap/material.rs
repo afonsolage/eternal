@@ -1,7 +1,7 @@
 use bevy::{
     asset::{Asset, Handle, RenderAssetUsages},
     image::{Image, ImageSampler},
-    math::UVec2,
+    math::{UVec2, Vec2},
     reflect::Reflect,
     render::render_resource::{
         AsBindGroup, Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -11,6 +11,8 @@ use bevy::{
 };
 use bytemuck::{Pod, Zeroable};
 
+use crate::world::grid;
+
 use super::TILES_PER_CHUNK;
 
 const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
@@ -19,12 +21,15 @@ const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct TilePod {
     pub index: u16,
-    // TODO: Add more info here.
+    pub height: u16, // TODO: Add more info here.
 }
 
 impl TilePod {
     pub fn discard() -> Self {
-        Self { index: u16::MAX }
+        Self {
+            index: u16::MAX,
+            height: 0,
+        }
     }
 }
 
@@ -40,8 +45,10 @@ pub struct TilemapChunkMaterial {
     // How many tiles are there in each chunk mesh
     #[uniform(3)]
     pub tiles_per_chunk: UVec2,
+    #[uniform(4)]
+    pub tile_size: Vec2,
     /// The encoded ``TilePod`` to be sent to fragment shader
-    #[texture(4, sample_type = "u_int")]
+    #[texture(5, sample_type = "u_int")]
     pub tiles_data: Handle<Image>,
 }
 
@@ -52,20 +59,20 @@ impl Material2d for TilemapChunkMaterial {
 }
 
 pub fn init_tile_data() -> Image {
-    let empty_data = vec![0xFF; TILES_PER_CHUNK.element_product() as usize * size_of::<TilePod>()];
+    let empty_data = vec![0xFF; grid::DIMS.element_product() as usize * size_of::<TilePod>()];
     Image {
         data: Some(empty_data),
         texture_descriptor: TextureDescriptor {
             label: None,
             size: Extent3d {
-                width: TILES_PER_CHUNK.x as u32,
-                height: TILES_PER_CHUNK.y as u32,
+                width: grid::DIMS.x,
+                height: grid::DIMS.y,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
-            format: TextureFormat::R16Uint,
+            format: TextureFormat::Rg16Uint,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
             view_formats: &[],
         },

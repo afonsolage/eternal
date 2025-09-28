@@ -16,8 +16,8 @@ pub fn generate_tile_ids() -> Grid<TileId> {
         .enumerate()
         .map(|(idx, tile_type)| {
             // Row-Major
-            let x = (idx % grid::HEIGHT) as i32;
-            let y = (idx / grid::HEIGHT) as i32;
+            let x = idx as i32 % grid::DIMS.y as i32;
+            let y = idx as i32 / grid::DIMS.y as i32;
             (x, y, tile_type)
         })
         .for_each(|(x, y, tile_type)| {

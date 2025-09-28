@@ -110,8 +110,8 @@ fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_map: Res<TileInfoMap>) ->
         texture_descriptor: TextureDescriptor {
             label: None,
             size: Extent3d {
-                width: grid::WIDTH as u32,
-                height: grid::HEIGHT as u32,
+                width: grid::DIMS.x,
+                height: grid::DIMS.y,
                 depth_or_array_layers: 1,
             },
             mip_level_count: 1,

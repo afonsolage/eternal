@@ -1,9 +1,6 @@
 use bevy::prelude::*;
 
-pub const WIDTH: usize = 256;
-pub const HEIGHT: usize = 256;
-
-pub const SIZE: usize = WIDTH * HEIGHT;
+pub const DIMS: UVec2 = UVec2::new(256, 256);
 
 #[derive(Default, Debug, Reflect, Deref, DerefMut, Component)]
 pub struct Grid<T>(Vec<T>);
@@ -19,6 +16,6 @@ where
     T: Default + Clone,
 {
     pub fn new() -> Self {
-        Self(vec![Default::default(); SIZE])
+        Self(vec![Default::default(); DIMS.element_product() as usize])
     }
 }
