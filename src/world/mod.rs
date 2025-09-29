@@ -3,9 +3,10 @@ use bevy::{platform::collections::HashMap, prelude::*};
 use crate::{
     config::tile::{TileConfig, TileConfigList},
     world::{
-        genesis::generate_tile_ids,
+        genesis::generate_grids,
+        grid::Grid,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
-        tile::{TileId, TileInfo, TileRegistry},
+        tile::{TileId, TileInfo, TileRegistry, TileVisible},
     },
 };
 
@@ -20,12 +21,18 @@ impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(MapRendererPlugin)
             .add_systems(Startup, setup)
-            .add_systems(PreUpdate, process_tile_info_list);
+            .add_systems(
+                PreUpdate,
+                (
+                    process_tile_info_list,
+                    update_tile_visibility.run_if(time_passed(0.5)),
+                ),
+            );
     }
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let tile_ids = generate_tile_ids();
+    let grids = generate_grids();
     let tilemap = Tilemap {
         atlas_texture: asset_server.load("sheets/terrain.png"),
         atlas_dims: UVec2::new(4, 4),
@@ -33,7 +40,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     };
 
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
-    commands.spawn((Name::new("Map"), tilemap, tile_ids));
+    commands.spawn((Name::new("Map"), tilemap, grids, Grid::<TileVisible>::new()));
+}
+
+fn time_passed(t: f32) -> impl FnMut(Local<f32>, Res<Time>) -> bool {
+    move |mut timer: Local<f32>, time: Res<Time>| {
+        // Tick the timer
+        *timer += time.delta_secs();
+        // Return true if the timer has passed the time
+        *timer >= t
+    }
 }
 
 #[derive(Resource)]
@@ -83,6 +99,51 @@ fn process_tile_info_list(
             debug!("Loaded tile info list: {map:?}");
 
             commands.insert_resource(TileRegistry::new(map));
+        }
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn update_tile_visibility(
+    q_tiles: Query<(&Tilemap, &mut Grid<TileVisible>)>,
+    q_camera: Query<
+        (&Camera, &GlobalTransform),
+        Or<(Changed<GlobalTransform>, Changed<Projection>)>,
+    >,
+) {
+    let Ok((camera, camera_transform)) = q_camera.single() else {
+        return;
+    };
+
+    let Ok(top_left) = camera.viewport_to_world_2d(camera_transform, Vec2::ZERO) else {
+        return;
+    };
+    let Some(viewport_size) = camera.logical_viewport_size() else {
+        return;
+    };
+    let Ok(bottom_right) = camera.viewport_to_world_2d(camera_transform, viewport_size) else {
+        return;
+    };
+
+    let bottom_left = Vec2::new(top_left.x, bottom_right.y);
+    let top_right = Vec2::new(bottom_right.x, top_left.y);
+
+    debug!("{top_left}, {bottom_right}");
+
+    for (tilemap, mut grid) in q_tiles {
+        let min_tile = (bottom_left / tilemap.tile_size)
+            .clamp(Vec2::ZERO, grid::DIMS.as_vec2())
+            .as_u16vec2();
+        let max_tile = (top_right / tilemap.tile_size)
+            .clamp(Vec2::ZERO, grid::DIMS.as_vec2())
+            .as_u16vec2();
+
+        grid.fill(TileVisible::default());
+
+        for y in min_tile.y..=max_tile.y {
+            for x in min_tile.x..=max_tile.x {
+                grid.set(x, y, TileVisible::visible());
+            }
         }
     }
 }

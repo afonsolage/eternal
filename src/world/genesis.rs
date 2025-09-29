@@ -2,41 +2,38 @@ use crate::{
     noise::Noise,
     world::{
         grid::{self, Grid},
-        tile::TileId,
+        tile::{TileElevation, TileId},
     },
 };
 
-pub fn generate_tile_ids() -> Grid<TileId> {
-    let noise = Noise::new(42);
+pub fn generate_grids() -> (Grid<TileId>, Grid<TileElevation>) {
+    let elevation_noise = Noise::new(42);
 
-    let mut tile_ids: Grid<TileId> = Grid::new();
+    let mut ids: Grid<TileId> = Grid::new();
+    let mut elevations: Grid<TileElevation> = Grid::new();
 
-    tile_ids
-        .iter_mut()
-        .enumerate()
-        .map(|(idx, tile_type)| {
-            // Row-Major
-            let x = idx as i32 % grid::DIMS.x as i32;
-            let y = idx as i32 / grid::DIMS.x as i32;
-            (x, y, tile_type)
-        })
-        .for_each(|(x, y, tile_type)| {
-            let i = noise.stone(x as f32, y as f32);
+    for y in 0..grid::DIMS.y {
+        for x in 0..grid::DIMS.x {
+            let elevation = elevation_noise.get(x as f32, y as f32);
 
-            let id = if i < -30 {
+            let id = if elevation < -0.3 {
                 2
-            } else if i < -20 {
+            } else if elevation < -0.2 {
                 4
-            } else if i < -10 {
+            } else if elevation < -0.1 {
                 0
-            } else if i < 20 {
+            } else if elevation < 0.2 {
                 1
             } else {
                 3
             };
 
-            let _ = std::mem::replace(tile_type, TileId::new(id));
-        });
+            let index = (y * grid::DIMS.x + x) as usize;
 
-    tile_ids
+            ids[index] = TileId::new(id);
+            elevations[index] = TileElevation::new(elevation);
+        }
+    }
+
+    (ids, elevations)
 }
