@@ -8,9 +8,9 @@ pub(crate) struct Noise {
 }
 
 impl Noise {
-    pub fn new() -> Self {
+    pub fn new(seed: u32) -> Self {
         // TODO: Move this to a config per-biome
-        let continentalness = Fbm::<Perlin>::new(42)
+        let continentalness = Fbm::<Perlin>::new(seed)
             .set_frequency(0.03)
             .set_octaves(3)
             .set_lacunarity(0.10);
@@ -61,6 +61,6 @@ impl Noise {
 
 impl Default for Noise {
     fn default() -> Self {
-        Self::new()
+        Self::new(42)
     }
 }

@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn generate_tile_ids() -> Grid<TileId> {
-    let noise = Noise::new();
+    let noise = Noise::new(42);
 
     let mut tile_ids: Grid<TileId> = Grid::new();
 

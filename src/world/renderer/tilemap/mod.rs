@@ -36,7 +36,7 @@ use crate::{
     config::tile::TileConfigList,
     world::{
         grid::{self, Grid},
-        tile::{self, TileId, TileInfoMap},
+        tile::{self, TileId, TileRegistry},
     },
 };
 
@@ -50,8 +50,8 @@ impl Plugin for TilemapPlugin {
             .add_systems(
                 Update,
                 update_tilemap_chunk_material.run_if(
-                    resource_exists::<TileInfoMap>.and(
-                        resource_changed::<TileInfoMap>
+                    resource_exists::<TileRegistry>.and(
+                        resource_changed::<TileRegistry>
                             .or(|q: Query<(), Changed<Grid<TileId>>>| !q.is_empty()),
                     ),
                 ),
@@ -107,13 +107,14 @@ struct TilemapParams {
 fn spawn_single_chunk(
     world: &mut DeferredWorld,
     chunk_pos: U16Vec2,
+    layer: i32,
     tile_size: Vec2,
     parent: Entity,
     TilemapCache { material, mesh }: TilemapCache,
 ) -> Entity {
     let chunk_size = tile_size * TILES_PER_CHUNK.as_vec2();
     let chunk_world_pos = chunk_pos.as_vec2() * chunk_size;
-    let chunk_world_pos = chunk_world_pos.extend(0.0);
+    let chunk_world_pos = chunk_world_pos.extend(layer as f32);
 
     let chunk_entity = world
         .commands()
@@ -169,7 +170,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
         .map(|(x, y)| {
             let chunk_pos = U16Vec2::new(x, y);
             let chunk_entity =
-                spawn_single_chunk(&mut world, chunk_pos, tile_size, entity, cache.clone());
+                spawn_single_chunk(&mut world, chunk_pos, 0, tile_size, entity, cache.clone());
             (chunk_pos, chunk_entity)
         })
         .collect();
@@ -205,7 +206,7 @@ pub struct TilemapIndex(pub u16);
 
 fn update_tilemap_chunk_material(
     q_tilemaps: Query<(&Grid<TileId>, &TilemapCache)>,
-    tile_info_map: Res<TileInfoMap>,
+    tile_info_map: Res<TileRegistry>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {

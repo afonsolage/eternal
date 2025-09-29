@@ -113,7 +113,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let tile_data = get_tile_data(tile_pos);
 
     if (tile_data.atlas_index == DISCARD.atlas_index) {
-        return vec4<f32>(1.0, 0.0, 0.0, 1.0);
+        discard;
     }
 
     return blend_neighbors(grid_pos);

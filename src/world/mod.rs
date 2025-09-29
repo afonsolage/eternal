@@ -5,7 +5,7 @@ use crate::{
     world::{
         genesis::generate_tile_ids,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
-        tile::{TileId, TileInfo, TileInfoMap},
+        tile::{TileId, TileInfo, TileRegistry},
     },
 };
 
@@ -82,7 +82,7 @@ fn process_tile_info_list(
 
             debug!("Loaded tile info list: {map:?}");
 
-            commands.insert_resource(TileInfoMap::new(map));
+            commands.insert_resource(TileRegistry::new(map));
         }
     }
 }

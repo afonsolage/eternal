@@ -7,7 +7,7 @@ use bevy::{
         AsBindGroup, Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
     shader::ShaderRef,
-    sprite_render::Material2d,
+    sprite_render::{AlphaMode2d, Material2d},
 };
 use bytemuck::{Pod, Zeroable};
 
@@ -55,6 +55,10 @@ pub struct TilemapChunkMaterial {
 impl Material2d for TilemapChunkMaterial {
     fn fragment_shader() -> ShaderRef {
         FRAGMENT_SHADER_PATH.into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode2d {
+        AlphaMode2d::Blend
     }
 }
 

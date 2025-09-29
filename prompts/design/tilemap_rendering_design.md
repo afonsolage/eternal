@@ -151,3 +151,38 @@ harder, more stylized edges.
 scalability is a higher priority than hand-polished transitions. It is highly recommended to
 **prototype** this technique on a small scale to validate the visual style before full
 implementation.
+
+---
+
+## Phase 4: Shader-Based Weighted Influence Blending
+
+This is a more advanced, fully procedural alternative to the mask-based splatting in Phase 3. It calculates the entire blend dynamically in the fragment shader, offering maximum flexibility.
+
+### 1. The Technique
+
+This method renders the entire tilemap in large, single-quad chunks and performs all blending calculations for every pixel on the GPU.
+
+1.  **Data to GPU:** Two key pieces of information are passed to the shader:
+    *   A **Data Texture** (`TileInfoTexture`): A texture where each pixel corresponds to a tile in the world grid. It stores data like the tile's type ID and atlas index. This allows the shader to know about its neighbors at any world position.
+    *   **Metadata Buffer:** A storage buffer containing metadata for each tile *type*, such as its `blending_weight`.
+
+2.  **Fragment Shader Logic:** For each pixel on the screen, the shader performs these steps:
+    a. It determines its `world_pos` and calculates which tile it is in (`center_tile_coord`) and its position within that tile (`local_uv`).
+    b. It loops through a 3x3 grid of tiles centered on the current pixel's tile.
+    c. For each of the 9 tiles (center + 8 neighbors), it calculates an **influence** value. The influence is 1.0 at the tile's center and falls off to 0.0 at the center of adjacent tiles. This is done using a linear gradient (`1.0 - abs(distance)`), which creates a diamond-shaped influence field.
+    d. This influence value is then multiplied by the `blending_weight` from the tile's metadata. This allows some tiles (e.g., "Stone") to have a stronger, more dominant blend than others (e.g., "Grass").
+    e. The final color of the pixel is the weighted average of the colors of all 9 neighbors, based on their final calculated influence. The shader samples the appropriate texture for each neighbor and blends it into the final color.
+    f. The result is normalized by the total influence to maintain correct brightness.
+
+### 2. Pros & Cons
+
+*   **Pros:**
+    *   **Dynamic & Data-Driven:** Blending behavior (weights) can be configured in asset files without changing art or code.
+    *   **Handles Complex Corners:** Naturally handles corners where 3, 4, or more tile types meet by simply blending all of their influences together.
+    *   **No Mask Textures:** Simplifies the art pipeline significantly. Only seamless, tiling textures are needed for each terrain type.
+    *   **Weighted Blending:** Provides powerful artistic control over the "strength" of different terrain edges.
+    *   **Highly Performant:** Keeps vertex counts extremely low. The parallel nature of the fragment shader is perfect for this kind of work.
+*   **Cons:**
+    *   **Shader Complexity:** The WGSL shader is significantly more complex than any other approach.
+    *   **"Blocky" Blending:** The default linear, diamond-shaped influence function results in blends that can look geometric or "blocky", which may or may not be desirable for the game's art style.
+    *   **Data Management:** Requires careful management of the `TileInfoTexture` and metadata buffers on the CPU side.

@@ -52,9 +52,9 @@ pub struct TileInfo {
 }
 
 #[derive(Debug, Default, Clone, Reflect, Deref, DerefMut, Resource)]
-pub struct TileInfoMap(HashMap<TileId, TileInfo>);
+pub struct TileRegistry(HashMap<TileId, TileInfo>);
 
-impl TileInfoMap {
+impl TileRegistry {
     pub fn new(map: HashMap<TileId, TileInfo>) -> Self {
         Self(map)
     }
