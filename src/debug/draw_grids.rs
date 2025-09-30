@@ -1,9 +1,12 @@
-use bevy::{asset::RenderAssetUsages, mesh::PrimitiveTopology, prelude::*};
+use bevy::{
+    asset::RenderAssetUsages, ecs::entity::EntityHashMap, math::U16Vec2, mesh::PrimitiveTopology,
+    prelude::*,
+};
 
 use crate::world::{
     grid::{self, Grid},
     renderer::tilemap::Tilemap,
-    tile::{self, TileId, TileRegistry},
+    tile::{self, TileId, TileRegistry, TileVisible},
 };
 
 pub struct DrawGridsPlugin;
@@ -13,6 +16,7 @@ impl Plugin for DrawGridsPlugin {
         app.add_systems(
             Update,
             (
+                draw_grid_texts,
                 draw_grid_wireframe.run_if(resource_exists_and_changed::<TileRegistry>),
                 draw_grid_tile_ids.run_if(
                     resource_exists::<TileRegistry>.and(
@@ -25,10 +29,51 @@ impl Plugin for DrawGridsPlugin {
     }
 }
 
-fn draw_grid_texts(camera: Query<&Camera>) {
-    let Ok(camera) = camera.single() else {
-        return;
-    };
+#[allow(clippy::type_complexity)]
+fn draw_grid_texts(
+    q_tilemaps: Query<
+        (Entity, &Tilemap, &Grid<TileVisible>, &Grid<TileId>),
+        Changed<Grid<TileVisible>>,
+    >,
+    mut entity_cache: Local<EntityHashMap<Vec<Option<Entity>>>>,
+    mut commands: Commands,
+) {
+    for (entity, tilemap, grid_visible, grid_id) in q_tilemaps {
+        debug!("Updating grid texts!");
+
+        let entities =
+            entity_cache
+                .entry(entity)
+                .or_insert(vec![None; grid::DIMS.element_product() as usize]);
+
+        grid_visible
+            .iter()
+            .enumerate()
+            .for_each(|(index, tile_visible)| {
+                if !tile_visible.is_visible()
+                    && let Some(entity) = entities[index]
+                {
+                    commands.entity(entity).despawn();
+                    entities[index] = None;
+                } else if tile_visible.is_visible() && entities[index].is_none() {
+                    let tile_pos =
+                        UVec2::new(index as u32 % grid::DIMS.x, index as u32 / grid::DIMS.x);
+                    let tile_world_pos =
+                        tile_pos.as_vec2() * tilemap.tile_size + (tilemap.tile_size / 2.0);
+
+                    let entity = commands
+                        .spawn((
+                            Name::new(format!("Tile Text {}, {}", tile_pos.x, tile_pos.y)),
+                            Text2d::new(grid_id[index].to_string()),
+                            Transform::from_translation(tile_world_pos.extend(102.0))
+                                .with_scale(Vec3::splat(0.5)),
+                        ))
+                        .id();
+
+                    entities[index] = Some(entity);
+                }
+            });
+    }
 }
 
 fn draw_grid_wireframe(

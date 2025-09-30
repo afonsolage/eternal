@@ -110,6 +110,7 @@ fn update_tile_visibility(
         (&Camera, &GlobalTransform),
         Or<(Changed<GlobalTransform>, Changed<Projection>)>,
     >,
+    mut last_rect: Local<Rect>,
 ) {
     let Ok((camera, camera_transform)) = q_camera.single() else {
         return;
@@ -125,18 +126,25 @@ fn update_tile_visibility(
         return;
     };
 
-    let bottom_left = Vec2::new(top_left.x, bottom_right.y);
-    let top_right = Vec2::new(bottom_right.x, top_left.y);
+    let rect = Rect::new(top_left.x, bottom_right.y, bottom_right.x, top_left.y);
 
-    debug!("{top_left}, {bottom_right}");
+    if *last_rect == rect {
+        return;
+    }
+
+    *last_rect = rect;
+
+    debug!("Updating tile visibility: {rect:?}");
 
     for (tilemap, mut grid) in q_tiles {
-        let min_tile = (bottom_left / tilemap.tile_size)
+        let min_tile = (rect.min / tilemap.tile_size)
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2())
             .as_u16vec2();
-        let max_tile = (top_right / tilemap.tile_size)
+        let max_tile = (rect.max / tilemap.tile_size)
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2())
             .as_u16vec2();
+
+        debug!("Updating tile visibility: {min_tile:?} - {max_tile:?}");
 
         grid.fill(TileVisible::default());
 
