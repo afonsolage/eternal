@@ -1,5 +1,6 @@
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
+use bevy::window::PresentMode;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
@@ -19,15 +20,20 @@ pub mod world;
 
 fn main() {
     App::new()
-        .add_plugins(
-            DefaultPlugins
-                .set(ImagePlugin::default_nearest())
-                .set(LogPlugin {
-                    level: bevy::log::Level::WARN,
-                    filter: "wgpu=error,eternal=trace".to_string(),
+        .add_plugins((DefaultPlugins
+            .set(ImagePlugin::default_nearest())
+            .set(LogPlugin {
+                level: bevy::log::Level::ERROR,
+                filter: "wgpu=error,bevy=warn,eternal=trace".to_string(),
+                ..Default::default()
+            })
+            .set(WindowPlugin {
+                primary_window: Some(Window {
+                    present_mode: PresentMode::Immediate,
                     ..Default::default()
                 }),
-        )
+                ..Default::default()
+            }),))
         .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
         .add_plugins((ConfigPlugin, WorldPlugin, PlayerPlugin, DebugPlugin))
         .add_systems(Startup, setup)

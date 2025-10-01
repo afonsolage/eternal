@@ -1,7 +1,4 @@
-use bevy::{
-    asset::RenderAssetUsages, ecs::entity::EntityHashMap, math::U16Vec2, mesh::PrimitiveTopology,
-    prelude::*,
-};
+use bevy::{asset::RenderAssetUsages, math::U16Vec2, mesh::PrimitiveTopology, prelude::*};
 
 use crate::world::{
     grid::{self, Grid},
@@ -25,54 +22,123 @@ impl Plugin for DrawGridsPlugin {
                     ),
                 ),
             ),
-        );
+        )
+        .add_observer(on_add_tilemap_insert_cache);
     }
+}
+
+fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
+    let tile_pos = U16Vec2::new(
+        index as u16 % grid::DIMS.x as u16,
+        index as u16 / grid::DIMS.x as u16,
+    );
+    let tile_center = (tile_pos.as_vec2() * tile_size + (tile_size / 2.0)).extend(0.03);
+
+    (
+        Name::new(format!("Tile Text {}, {}", tile_pos.x, tile_pos.y)),
+        Text2d::default(),
+        Transform::from_translation(tile_center).with_scale(Vec3::splat(0.5)),
+        children![
+            (
+                Transform::from_xyz(0.0, 23.0, 0.0),
+                Text2d::default(),
+                children![(
+                    Text2d::new(format!("{},{}", tile_pos.x, tile_pos.y)),
+                    Transform::from_xyz(0.0, 0.0, 0.0),
+                    TextFont {
+                        font_size: 12.0,
+                        ..Default::default()
+                    }
+                )],
+            ),
+            (
+                Transform::from_xyz(0.0, 0.0, 0.0),
+                Text2d::new(id.to_string()),
+                TextFont {
+                    font_size: 12.0,
+                    ..Default::default()
+                }
+            )
+        ],
+    )
+    //
+}
+
+fn on_add_tilemap_insert_cache(add: On<Add, Tilemap>, mut commands: Commands) {
+    commands.entity(add.entity).insert(DrawGridTextCache {
+        root: None,
+        entities: Grid::new(),
+    });
+    // .observe(
+    //     |remove: On<Remove, DrawGridTextCache>,
+    //      mut commands: Commands,
+    //      q: Query<&DrawGridTextCache>| {
+    //         if let Ok(cache) = q.get(remove.entity)
+    //             && let Some(root) = cache.root
+    //         {
+    //             commands.entity(root).despawn();
+    //         }
+    //     },
+    // );
+}
+
+#[derive(Default, Component)]
+struct DrawGridTextCache {
+    root: Option<Entity>,
+    entities: Grid<Option<Entity>>,
 }
 
 #[allow(clippy::type_complexity)]
 fn draw_grid_texts(
     q_tilemaps: Query<
-        (Entity, &Tilemap, &Grid<TileVisible>, &Grid<TileId>),
+        (
+            Entity,
+            &Tilemap,
+            &Grid<TileVisible>,
+            &Grid<TileId>,
+            &mut DrawGridTextCache,
+        ),
         Changed<Grid<TileVisible>>,
     >,
-    mut entity_cache: Local<EntityHashMap<Vec<Option<Entity>>>>,
     mut commands: Commands,
 ) {
-    for (entity, tilemap, grid_visible, grid_id) in q_tilemaps {
-        debug!("Updating grid texts!");
+    for (entity, tilemap, grid_visible, grid_id, mut cache) in q_tilemaps {
+        let c = cache.root;
+        let root = *cache.root.get_or_insert_with(|| {
+            debug!("Spawning a new root: {c:?}");
+            commands
+                .spawn((
+                    Name::new(format!("Grid Overlay - texts {entity}")),
+                    Transform::default(),
+                    Text2d::default(),
+                ))
+                .id()
+        });
+        debug!("Updating grid texts! {c:?}");
 
-        let entities =
-            entity_cache
-                .entry(entity)
-                .or_insert(vec![None; grid::DIMS.element_product() as usize]);
+        let mut despawn = vec![];
+        commands.entity(root).with_children(|parent| {
+            grid_visible
+                .iter()
+                .enumerate()
+                .for_each(|(index, tile_visible)| {
+                    if !tile_visible.is_visible()
+                        && let Some(entity) = cache.entities[index]
+                    {
+                        despawn.push(entity);
+                        cache.entities[index] = None;
+                    } else if tile_visible.is_visible() && cache.entities[index].is_none() {
+                        let entity = parent
+                            .spawn(tile_text_bundle(tilemap.tile_size, index, grid_id[index]))
+                            .id();
+                        cache.entities[index] = Some(entity);
+                    }
+                });
+        });
 
-        grid_visible
-            .iter()
-            .enumerate()
-            .for_each(|(index, tile_visible)| {
-                if !tile_visible.is_visible()
-                    && let Some(entity) = entities[index]
-                {
-                    commands.entity(entity).despawn();
-                    entities[index] = None;
-                } else if tile_visible.is_visible() && entities[index].is_none() {
-                    let tile_pos =
-                        UVec2::new(index as u32 % grid::DIMS.x, index as u32 / grid::DIMS.x);
-                    let tile_world_pos =
-                        tile_pos.as_vec2() * tilemap.tile_size + (tilemap.tile_size / 2.0);
-
-                    let entity = commands
-                        .spawn((
-                            Name::new(format!("Tile Text {}, {}", tile_pos.x, tile_pos.y)),
-                            Text2d::new(grid_id[index].to_string()),
-                            Transform::from_translation(tile_world_pos.extend(102.0))
-                                .with_scale(Vec3::splat(0.5)),
-                        ))
-                        .id();
-
-                    entities[index] = Some(entity);
-                }
-            });
+        despawn
+            .into_iter()
+            .for_each(|e| commands.entity(e).despawn());
     }
 }
 
@@ -118,7 +184,7 @@ fn draw_grid_wireframe(
                 Name::new("Grid Overlay - wireframe"),
                 Mesh2d(mesh),
                 MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, 110.0).with_scale(tilemap.tile_size.extend(1.0)),
+                Transform::from_xyz(0.0, 0.0, 0.02).with_scale(tilemap.tile_size.extend(1.0)),
             ))
             .id();
 
@@ -187,7 +253,7 @@ fn draw_grid_tile_ids(
                 Name::new("Grid Overlay - TileIds"),
                 Mesh2d(mesh),
                 MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, 100.0).with_scale(tilemap.tile_size.extend(1.0)),
+                Transform::from_xyz(0.0, 0.0, 0.01).with_scale(tilemap.tile_size.extend(1.0)),
             ))
             .id();
 

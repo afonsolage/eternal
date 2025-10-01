@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.17.0-rc.1", features = ["wayland", "file_watcher"] }
+bevy = { version = "0.17.0-rc.1", features = ["wayland", "file_watcher", "bevy_dev_tools"] }
 bytemuck = "1.23.2"
 thiserror = { version = "2", default-features = false }
 itertools = "0.14"

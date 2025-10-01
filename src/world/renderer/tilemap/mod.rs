@@ -238,10 +238,6 @@ fn update_tilemap_chunk_material(
                 let id = grid[idx];
                 let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
 
-                if idx < 10 {
-                    debug!("[{idx}] {id:?} = {info:?}");
-                }
-
                 pod.index = info.atlas_index;
                 pod.weight = match info.blend_tech {
                     tile::BlendTech::None => u16::MAX,
