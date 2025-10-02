@@ -134,8 +134,6 @@ fn update_tile_visibility(
 
     *last_rect = rect;
 
-    debug!("Updating tile visibility: {rect:?}");
-
     for (tilemap, mut grid) in q_tiles {
         let min_tile = (rect.min / tilemap.tile_size)
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
@@ -143,8 +141,6 @@ fn update_tile_visibility(
         let max_tile = (rect.max / tilemap.tile_size)
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
             .as_u16vec2();
-
-        debug!("Updating tile visibility: {min_tile:?} - {max_tile:?}");
 
         grid.fill(TileVisible::default());
 

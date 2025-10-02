@@ -65,26 +65,34 @@ fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
 }
 
 fn on_add_tilemap_insert_cache(add: On<Add, Tilemap>, mut commands: Commands) {
-    commands.entity(add.entity).insert(DrawGridTextCache {
-        root: None,
-        entities: Grid::new(),
-    });
-    // .observe(
-    //     |remove: On<Remove, DrawGridTextCache>,
-    //      mut commands: Commands,
-    //      q: Query<&DrawGridTextCache>| {
-    //         if let Ok(cache) = q.get(remove.entity)
-    //             && let Some(root) = cache.root
-    //         {
-    //             commands.entity(root).despawn();
-    //         }
-    //     },
-    // );
+    let root = commands
+        .spawn((
+            Name::new("Grid Overlay - texts"),
+            Transform::default(),
+            Text2d::default(),
+        ))
+        .id();
+
+    commands
+        .entity(add.entity)
+        .insert(DrawGridTextCache {
+            root,
+            entities: Grid::new(),
+        })
+        .observe(
+            |remove: On<Remove, DrawGridTextCache>,
+             mut commands: Commands,
+             q: Query<&DrawGridTextCache>| {
+                if let Ok(cache) = q.get(remove.entity) {
+                    commands.entity(cache.root).despawn();
+                }
+            },
+        );
 }
 
-#[derive(Default, Component)]
+#[derive(Component)]
 struct DrawGridTextCache {
-    root: Option<Entity>,
+    root: Entity,
     entities: Grid<Option<Entity>>,
 }
 
@@ -92,7 +100,6 @@ struct DrawGridTextCache {
 fn draw_grid_texts(
     q_tilemaps: Query<
         (
-            Entity,
             &Tilemap,
             &Grid<TileVisible>,
             &Grid<TileId>,
@@ -102,22 +109,21 @@ fn draw_grid_texts(
     >,
     mut commands: Commands,
 ) {
-    for (entity, tilemap, grid_visible, grid_id, mut cache) in q_tilemaps {
-        let c = cache.root;
-        let root = *cache.root.get_or_insert_with(|| {
-            debug!("Spawning a new root: {c:?}");
-            commands
-                .spawn((
-                    Name::new(format!("Grid Overlay - texts {entity}")),
-                    Transform::default(),
-                    Text2d::default(),
-                ))
-                .id()
-        });
-        debug!("Updating grid texts! {c:?}");
+    for (tilemap, grid_visible, grid_id, mut cache) in q_tilemaps {
+        debug!("Updating grid texts!");
+
+        // Avoid spawning a huge number of texts when the camera zooms out
+        if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
+            cache.entities.iter_mut().for_each(|t| {
+                if let Some(e) = t.take() {
+                    commands.entity(e).despawn();
+                }
+            });
+            return;
+        }
 
         let mut despawn = vec![];
-        commands.entity(root).with_children(|parent| {
+        commands.entity(cache.root).with_children(|parent| {
             grid_visible
                 .iter()
                 .enumerate()
