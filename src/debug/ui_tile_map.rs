@@ -13,7 +13,7 @@ use bevy::{
 
 use crate::{
     config::tile::TileConfigList,
-    ui::window::spawn_window,
+    ui::window::window,
     world::{
         grid::{self, Grid},
         renderer::tilemap::Tilemap,
@@ -37,27 +37,39 @@ impl Plugin for UIDrawTileMap {
     }
 }
 
-#[derive(Resource)]
-struct BodyEntity(Entity);
+#[derive(Component)]
+struct ImageContainer;
 
 #[derive(Component)]
 struct DisplayMapUI;
 
-fn spawn_debug_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let body = spawn_window(
-        &mut commands,
-        &asset_server,
-        "[Debug] Display Map",
-        (DisplayMapUI,),
-    )
-    .id();
-
-    commands.insert_resource(BodyEntity(body));
+fn spawn_debug_ui(mut commands: Commands) {
+    commands.spawn((
+        window(
+            "[Debug] Map",
+            (
+                Name::new("Image Container"),
+                Node {
+                    width: percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    ..Default::default()
+                },
+                children![(
+                    ImageContainer,
+                    ImageNode {
+                        flip_y: true,
+                        ..Default::default()
+                    }
+                )],
+            ),
+        ),
+        DisplayMapUI,
+    ));
 }
 
 fn update_tile_map_color_ui(
-    body: Res<BodyEntity>,
     q_tiles: Query<&Grid<TileId>>,
+    mut q_containers: Query<&mut ImageNode, With<ImageContainer>>,
     tile_info: Res<TileRegistry>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
@@ -67,24 +79,13 @@ fn update_tile_map_color_ui(
         return;
     };
 
+    let Ok(mut image_node) = q_containers.single_mut() else {
+        return;
+    };
+
     debug!("Updating map");
 
-    let image = images.add(draw_tile_map_colors(grid, tile_info));
-
-    let BodyEntity(body) = *body;
-    commands.entity(body).despawn_children().with_child((
-        Name::new("Image Container"),
-        Node {
-            width: percent(100.0),
-            justify_content: JustifyContent::Center,
-            ..Default::default()
-        },
-        children![ImageNode {
-            image,
-            flip_y: true,
-            ..Default::default()
-        }],
-    ));
+    image_node.image = images.add(draw_tile_map_colors(grid, tile_info));
 }
 
 fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_map: Res<TileRegistry>) -> Image {

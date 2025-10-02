@@ -4,19 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.17.0-rc.1", features = ["wayland", "file_watcher", "bevy_dev_tools"] }
+bevy = { version = "0.17", features = ["track_location", "wayland", "file_watcher", "bevy_dev_tools", "experimental_bevy_feathers"] }
 bytemuck = "1.23.2"
 thiserror = { version = "2", default-features = false }
-itertools = "0.14"
 
-ron = { version = "0.10", default-features = false }
+ron = { version = "0.11", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive"] }
 
-bevy_egui = { version = "0.37.0", default-features = false }
-bevy-inspector-egui = { version = "0.34.0" }
+bevy_egui = { version = "0.37", default-features = false }
+bevy-inspector-egui = { version = "0.34" }
 
 noise = "0.9"
-
-[patch.crates-io]
-bevy_egui = { git = "https://github.com/villor/bevy_egui.git", branch = "bevy-0.17"}
-bevy-inspector-egui = { git = "https://github.com/villor/bevy-inspector-egui.git", branch = "bevy-0.17"}

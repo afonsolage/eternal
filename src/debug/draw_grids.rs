@@ -1,15 +1,19 @@
 use bevy::{asset::RenderAssetUsages, math::U16Vec2, mesh::PrimitiveTopology, prelude::*};
 
-use crate::world::{
-    grid::{self, Grid},
-    renderer::tilemap::Tilemap,
-    tile::{self, TileId, TileRegistry, TileVisible},
+use crate::{
+    ui::window::window,
+    world::{
+        grid::{self, Grid},
+        renderer::tilemap::Tilemap,
+        tile::{self, TileId, TileRegistry, TileVisible},
+    },
 };
 
 pub struct DrawGridsPlugin;
 
 impl Plugin for DrawGridsPlugin {
     fn build(&self, app: &mut App) {
+        app.add_systems(Startup, spawn_debug_grids_ui);
         app.add_systems(
             Update,
             (
@@ -25,6 +29,12 @@ impl Plugin for DrawGridsPlugin {
         )
         .add_observer(on_add_tilemap_insert_cache);
     }
+}
+
+#[derive(Component)]
+struct DrawGridsUi;
+fn spawn_debug_grids_ui(mut commands: Commands) {
+    commands.spawn((window("[Debug] Draw Grids", ()), DrawGridsUi));
 }
 
 fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {

@@ -1,4 +1,7 @@
-use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
+use bevy::{prelude::*, ui_widgets::observe};
+
+const WINDOW_BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(0.1, 0.1, 0.1, 0.9));
+const TITLE_BACKGROUND_COLOR: Color = Color::Srgba(Srgba::new(0.3, 0.3, 0.3, 1.0));
 
 #[derive(Component)]
 struct WindowRoot;
@@ -6,123 +9,133 @@ struct WindowRoot;
 #[derive(Component)]
 struct TitleBar;
 
-pub fn spawn_window<'a>(
-    commands: &'a mut Commands,
-    asset_server: &'a Res<AssetServer>,
-    title: impl Into<String>,
-    override_root: impl Bundle,
-) -> EntityCommands<'a> {
-    let image = asset_server.load("ui/9_slice/window.png");
+#[derive(Component)]
+struct WindowBody;
 
-    let slicer = TextureSlicer {
-        border: BorderRect::all(32.0),
-        max_corner_scale: 3.0,
-        ..Default::default()
-    };
-
-    let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-
-    let mut entity_commands = commands.spawn((
+pub fn window(title: impl Into<String>, body: impl Bundle) -> impl Bundle {
+    (
+        BackgroundColor(WINDOW_BACKGROUND_COLOR),
         Node {
             position_type: PositionType::Absolute,
             align_items: AlignItems::Stretch,
             justify_content: JustifyContent::Center,
             flex_direction: FlexDirection::Column,
-            padding: UiRect {
-                left: px(12.0),
-                right: px(12.0),
-                top: px(0.0),
-                bottom: px(12.0),
-            },
-            ..Default::default()
-        },
-        ImageNode {
-            image,
-            image_mode: NodeImageMode::Sliced(slicer),
-            ..Default::default()
+            padding: UiRect::all(px(5.0)),
+            ..default()
         },
         WindowRoot,
-        override_root,
-    ));
-
-    let parent = entity_commands
-        .with_children(|parent| {
-            parent
-                .spawn((
-                    Name::new("Top"),
-                    Node {
-                        min_height: Val::Px(40.0),
-                        margin: UiRect::top(Val::Px(5.0)),
-                        ..Default::default()
-                    },
-                ))
-                .with_children(|parent| {
-                    spawn_close_btn(parent);
-                    spawn_title_bar(parent, font, title);
-
-                    // No use, right now, for the right portion  of the window
-                    parent.spawn((
-                        Name::new("Right"),
-                        Node {
-                            min_width: Val::Px(65.0),
-                            min_height: Val::Px(40.0),
-                            ..Default::default()
-                        },
-                    ));
-                });
-        })
-        .id();
-
-    commands.spawn((
-        Node {
-            padding: px(10.0).all(),
-            ..Default::default()
-        },
-        Name::new("Body"),
-        ChildOf(parent),
-    ))
+        children![
+            (
+                BackgroundColor(TITLE_BACKGROUND_COLOR),
+                Name::new("Top"),
+                Node {
+                    height: px(28.0),
+                    ..default()
+                },
+                children![close_button(), title_bar(title), collapse_button(),],
+            ),
+            (
+                Node {
+                    padding: px(10.0).all(),
+                    ..default()
+                },
+                Name::new("Body"),
+                WindowBody,
+                children![body],
+            )
+        ],
+    )
 }
 
-fn spawn_close_btn(parent: &mut RelatedSpawnerCommands<ChildOf>) {
-    parent
-        .spawn((
-            Name::new("Left"),
-            Node {
-                min_width: Val::Px(65.0),
-                ..Default::default()
-            },
-        ))
-        .observe(
+fn close_button() -> impl Bundle {
+    (
+        Name::new("Left"),
+        Node {
+            min_width: Val::Px(30.0),
+            ..default()
+        },
+        Text::new("X"),
+        TextFont {
+            font_size: 25.0,
+            ..default()
+        },
+        TextLayout {
+            justify: Justify::Center,
+            ..Default::default()
+        },
+        observe(
             |click: On<Pointer<Click>>, q_hierarchy: Query<&ChildOf>, mut commands: Commands| {
                 let root = q_hierarchy.root_ancestor(click.entity);
                 commands.entity(root).despawn();
             },
-        );
+        ),
+    )
 }
 
-fn spawn_title_bar(
-    parent: &mut RelatedSpawnerCommands<ChildOf>,
-    font: Handle<Font>,
-    title: impl Into<String>,
-) {
-    parent
-        .spawn((
-            Name::new("Middle"),
-            Node {
-                width: Val::Percent(100.0),
-                ..Default::default()
+fn collapse_button() -> impl Bundle {
+    (
+        Name::new("Right"),
+        Node {
+            min_width: Val::Px(30.0),
+            ..default()
+        },
+        Text::new("-"),
+        TextFont {
+            font_size: 25.0,
+            ..default()
+        },
+        TextLayout {
+            justify: Justify::Center,
+            ..Default::default()
+        },
+        observe(
+            |click: On<Pointer<Click>>,
+             q_parents: Query<&ChildOf>,
+             q_children: Query<&Children>,
+             mut q_body: Query<&mut Node, With<WindowBody>>,
+             mut commands: Commands,
+             mut collapsed: Local<bool>| {
+                let root = q_parents.root_ancestor(click.entity);
+                if let Some(body) = q_children
+                    .iter_descendants(root)
+                    .find(|e| q_body.contains(*e))
+                    && let Ok(mut body_node) = q_body.get_mut(body)
+                {
+                    body_node.display = if *collapsed {
+                        Display::Flex
+                    } else {
+                        Display::None
+                    };
+                }
+
+                if *collapsed {
+                    commands.entity(click.entity).insert(Text::new("-"));
+                } else {
+                    commands.entity(click.entity).insert(Text::new("+"));
+                }
+
+                *collapsed = !*collapsed;
             },
-            TitleBar,
-            Text::new(title),
-            TextFont {
-                font,
-                font_size: 25.0,
-                ..default()
-            },
-            TextColor(Color::srgb(0.9, 0.9, 0.9)),
-            TextLayout::new_with_justify(Justify::Center),
-        ))
-        .observe(
+        ),
+    )
+}
+
+fn title_bar(title: impl Into<String>) -> impl Bundle {
+    (
+        Name::new("Middle"),
+        Node {
+            width: Val::Percent(100.0),
+            ..default()
+        },
+        TitleBar,
+        Text::new(title),
+        TextFont {
+            font_size: 25.0,
+            ..default()
+        },
+        TextColor(Color::srgb(0.9, 0.9, 0.9)),
+        TextLayout::new_with_justify(Justify::Center),
+        observe(
             |mut drag: On<Pointer<Drag>>,
              q_hierarchy: Query<&ChildOf>,
              mut q_root: Query<&mut UiTransform, With<WindowRoot>>| {
@@ -148,5 +161,6 @@ fn spawn_title_bar(
 
                 root_transform.translation = Val2::px(x + drag.delta.x, y + drag.delta.y);
             },
-        );
+        ),
+    )
 }
