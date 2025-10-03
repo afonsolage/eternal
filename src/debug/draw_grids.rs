@@ -1,4 +1,13 @@
-use bevy::{asset::RenderAssetUsages, math::U16Vec2, mesh::PrimitiveTopology, prelude::*};
+use bevy::{
+    asset::RenderAssetUsages,
+    ecs::system::command::init_resource,
+    feathers::controls::checkbox,
+    math::U16Vec2,
+    mesh::PrimitiveTopology,
+    prelude::*,
+    ui::Checked,
+    ui_widgets::{ValueChange, observe},
+};
 
 use crate::{
     ui::window::{WindowConfig, window},
@@ -17,24 +26,42 @@ impl Plugin for DrawGridsPlugin {
         app.add_systems(
             Update,
             (
-                draw_grid_texts,
-                draw_grid_wireframe.run_if(resource_exists_and_changed::<TileRegistry>),
+                draw_grid_texts.run_if(
+                    resource_changed::<DrawGridsConfig>
+                        .or(|q: Query<(), Changed<Grid<TileVisible>>>| !q.is_empty()),
+                ),
+                draw_grid_wireframe.run_if(
+                    resource_exists::<TileRegistry>.and(
+                        resource_changed::<TileRegistry>.or(resource_changed::<DrawGridsConfig>),
+                    ),
+                ),
                 draw_grid_tile_ids.run_if(
                     resource_exists::<TileRegistry>.and(
                         resource_changed::<TileRegistry>
+                            .or(resource_changed::<DrawGridsConfig>)
                             .or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
                     ),
                 ),
             ),
         )
-        .add_observer(on_add_tilemap_insert_cache);
+        .add_observer(on_add_tilemap_insert_cache)
+        .init_resource::<DrawGridsConfig>();
     }
+}
+
+#[derive(Default, Copy, Clone, Resource)]
+struct DrawGridsConfig {
+    show_ids: bool,
+    show_grid: bool,
+    show_text: bool,
 }
 
 #[derive(Component)]
 struct DrawGridsUi;
+
 fn spawn_debug_grids_ui(mut commands: Commands) {
     commands.spawn((
+        Name::new("Debug Grids"),
         window(
             WindowConfig {
                 title: "[Debug] Draw Grids".to_string(),
@@ -42,7 +69,59 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                 bottom: px(1.0),
                 ..default()
             },
-            (),
+            (
+                Node {
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                children![
+                    (
+                        checkbox((), Spawn(Text::new("Show IDs"))),
+                        observe(
+                            |change: On<ValueChange<bool>>,
+                             mut commands: Commands,
+                             mut config: ResMut<DrawGridsConfig>| {
+                                config.show_ids = change.value;
+                                if config.show_ids {
+                                    commands.entity(change.source).insert(Checked);
+                                } else {
+                                    commands.entity(change.source).remove::<Checked>();
+                                }
+                            }
+                        ),
+                    ),
+                    (
+                        checkbox((), Spawn(Text::new("Show Grid"))),
+                        observe(
+                            |change: On<ValueChange<bool>>,
+                             mut commands: Commands,
+                             mut config: ResMut<DrawGridsConfig>| {
+                                config.show_grid = change.value;
+                                if config.show_grid {
+                                    commands.entity(change.source).insert(Checked);
+                                } else {
+                                    commands.entity(change.source).remove::<Checked>();
+                                }
+                            }
+                        ),
+                    ),
+                    (
+                        checkbox((), Spawn(Text::new("Show Texts"))),
+                        observe(
+                            |change: On<ValueChange<bool>>,
+                             mut commands: Commands,
+                             mut config: ResMut<DrawGridsConfig>| {
+                                config.show_text = change.value;
+                                if config.show_text {
+                                    commands.entity(change.source).insert(Checked);
+                                } else {
+                                    commands.entity(change.source).remove::<Checked>();
+                                }
+                            }
+                        ),
+                    )
+                ],
+            ),
         ),
         DrawGridsUi,
     ));
@@ -119,19 +198,29 @@ struct DrawGridTextCache {
 
 #[allow(clippy::type_complexity)]
 fn draw_grid_texts(
-    q_tilemaps: Query<
-        (
-            &Tilemap,
-            &Grid<TileVisible>,
-            &Grid<TileId>,
-            &mut DrawGridTextCache,
-        ),
-        Changed<Grid<TileVisible>>,
-    >,
+    q_tilemaps: Query<(
+        &Tilemap,
+        &Grid<TileVisible>,
+        &Grid<TileId>,
+        &mut DrawGridTextCache,
+    )>,
+    config: Res<DrawGridsConfig>,
     mut commands: Commands,
 ) {
     for (tilemap, grid_visible, grid_id, mut cache) in q_tilemaps {
         debug!("Updating grid texts!");
+
+        // Despawn all text entities if config says so
+        if !config.show_text {
+            cache
+                .entities
+                .iter_mut()
+                .filter_map(Option::take)
+                .for_each(|e| {
+                    commands.entity(e).despawn();
+                });
+            return;
+        }
 
         // Avoid spawning a huge number of texts when the camera zooms out
         if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
@@ -175,10 +264,15 @@ fn draw_grid_wireframe(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut entities: Local<Vec<Entity>>,
+    config: Res<DrawGridsConfig>,
 ) {
     entities
         .drain(..)
         .for_each(|e| commands.entity(e).despawn());
+
+    if !config.show_grid {
+        return;
+    }
 
     debug!("Drawing grid wireframe");
 
@@ -226,10 +320,15 @@ fn draw_grid_tile_ids(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut entities: Local<Vec<Entity>>,
+    config: Res<DrawGridsConfig>,
 ) {
     entities
         .drain(..)
         .for_each(|e| commands.entity(e).despawn());
+
+    if !config.show_ids {
+        return;
+    }
 
     debug!("Drawing grid tile ids");
 

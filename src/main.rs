@@ -4,6 +4,7 @@ use bevy::window::PresentMode;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
+use crate::ui::UiPlugin;
 use crate::{
     config::ConfigPlugin,
     debug::DebugPlugin,
@@ -35,7 +36,13 @@ fn main() {
                 ..Default::default()
             }),))
         .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
-        .add_plugins((ConfigPlugin, WorldPlugin, PlayerPlugin, DebugPlugin))
+        .add_plugins((
+            ConfigPlugin,
+            WorldPlugin,
+            PlayerPlugin,
+            UiPlugin,
+            DebugPlugin,
+        ))
         .add_systems(Startup, setup)
         .run();
 }

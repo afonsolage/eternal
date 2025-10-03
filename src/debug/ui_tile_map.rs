@@ -46,6 +46,7 @@ struct DisplayMapUI;
 
 fn spawn_debug_ui(mut commands: Commands) {
     commands.spawn((
+        Name::new("Debug Map"),
         window(
             WindowConfig {
                 title: "[Debug] Map".to_string(),
