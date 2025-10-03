@@ -1,7 +1,7 @@
 use bevy::{asset::RenderAssetUsages, math::U16Vec2, mesh::PrimitiveTopology, prelude::*};
 
 use crate::{
-    ui::window::window,
+    ui::window::{WindowConfig, window},
     world::{
         grid::{self, Grid},
         renderer::tilemap::Tilemap,
@@ -34,7 +34,18 @@ impl Plugin for DrawGridsPlugin {
 #[derive(Component)]
 struct DrawGridsUi;
 fn spawn_debug_grids_ui(mut commands: Commands) {
-    commands.spawn((window("[Debug] Draw Grids", ()), DrawGridsUi));
+    commands.spawn((
+        window(
+            WindowConfig {
+                title: "[Debug] Draw Grids".to_string(),
+                right: px(1.0),
+                bottom: px(1.0),
+                ..default()
+            },
+            (),
+        ),
+        DrawGridsUi,
+    ));
 }
 
 fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {

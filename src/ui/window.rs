@@ -12,7 +12,25 @@ struct TitleBar;
 #[derive(Component)]
 struct WindowBody;
 
-pub fn window(title: impl Into<String>, body: impl Bundle) -> impl Bundle {
+#[derive(Default, Clone)]
+pub struct WindowConfig {
+    pub title: String,
+    pub top: Val,
+    pub right: Val,
+    pub left: Val,
+    pub bottom: Val,
+}
+
+pub fn window(
+    WindowConfig {
+        title,
+        top,
+        right,
+        left,
+        bottom,
+    }: WindowConfig,
+    body: impl Bundle,
+) -> impl Bundle {
     (
         BackgroundColor(WINDOW_BACKGROUND_COLOR),
         Node {
@@ -21,6 +39,10 @@ pub fn window(title: impl Into<String>, body: impl Bundle) -> impl Bundle {
             justify_content: JustifyContent::Center,
             flex_direction: FlexDirection::Column,
             padding: UiRect::all(px(5.0)),
+            top,
+            right,
+            left,
+            bottom,
             ..default()
         },
         WindowRoot,

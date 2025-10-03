@@ -14,7 +14,7 @@ use bevy::{
 
 use crate::{
     config::tile::TileConfigList,
-    ui::window::window,
+    ui::window::{WindowConfig, window},
     world::{
         grid::{self, Grid},
         renderer::tilemap::Tilemap,
@@ -47,7 +47,12 @@ struct DisplayMapUI;
 fn spawn_debug_ui(mut commands: Commands) {
     commands.spawn((
         window(
-            "[Debug] Map",
+            WindowConfig {
+                title: "[Debug] Map".to_string(),
+                top: px(1.0),
+                right: px(1.0),
+                ..default()
+            },
             (
                 Name::new("Image Container"),
                 Node {
@@ -64,12 +69,6 @@ fn spawn_debug_ui(mut commands: Commands) {
                 )],
             ),
         ),
-        observe(|insert: On<Insert, Node>, mut q_nodes: Query<&mut Node>| {
-            if let Ok(mut node) = q_nodes.get_mut(insert.entity) {
-                node.right = px(1.0);
-                node.top = px(1.0);
-            }
-        }),
         DisplayMapUI,
     ));
 }
