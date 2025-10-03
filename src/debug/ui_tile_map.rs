@@ -9,6 +9,7 @@ use bevy::{
     render::render_resource::{
         Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
+    ui_widgets::observe,
 };
 
 use crate::{
@@ -63,6 +64,12 @@ fn spawn_debug_ui(mut commands: Commands) {
                 )],
             ),
         ),
+        observe(|insert: On<Insert, Node>, mut q_nodes: Query<&mut Node>| {
+            if let Ok(mut node) = q_nodes.get_mut(insert.entity) {
+                node.right = px(1.0);
+                node.top = px(1.0);
+            }
+        }),
         DisplayMapUI,
     ));
 }
