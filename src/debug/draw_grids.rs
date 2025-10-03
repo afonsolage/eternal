@@ -1,6 +1,5 @@
 use bevy::{
     asset::RenderAssetUsages,
-    ecs::system::command::init_resource,
     feathers::controls::checkbox,
     math::U16Vec2,
     mesh::PrimitiveTopology,
