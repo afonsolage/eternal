@@ -1,16 +1,16 @@
 use crate::{
     noise::Noise,
     world::{
-        grid::{self, Grid},
+        grid::{self, Grid, GridElevation, GridId},
         tile::{TileElevation, TileId},
     },
 };
 
-pub fn generate_grids() -> (Grid<TileId>, Grid<TileElevation>) {
+pub fn generate_grids() -> (GridId, GridElevation) {
     let elevation_noise = Noise::new(42);
 
-    let mut ids: Grid<TileId> = Grid::new();
-    let mut elevations: Grid<TileElevation> = Grid::new();
+    let mut ids = Grid::new();
+    let mut elevations = Grid::new();
 
     for y in 0..grid::DIMS.y {
         for x in 0..grid::DIMS.x {
@@ -30,8 +30,8 @@ pub fn generate_grids() -> (Grid<TileId>, Grid<TileElevation>) {
 
             let index = (y * grid::DIMS.x + x) as usize;
 
-            ids[index] = TileId::new(id);
-            elevations[index] = TileElevation::new(elevation);
+            ids[0][index] = TileId::new(id);
+            elevations[0][index] = TileElevation::new(elevation);
         }
     }
 

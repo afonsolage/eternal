@@ -35,7 +35,7 @@ use material::{TilePod, TilemapChunkMaterial};
 use crate::{
     config::tile::TileConfigList,
     world::{
-        grid::{self, Grid},
+        grid::{self, Grid, GridId},
         tile::{self, TileId, TileRegistry},
     },
 };
@@ -205,7 +205,7 @@ fn create_tilemap_chunk_mesh() -> Mesh {
 pub struct TilemapIndex(pub u16);
 
 fn update_tilemap_chunk_material(
-    q_tilemaps: Query<(&Grid<TileId>, &TilemapCache)>,
+    q_tilemaps: Query<(&GridId, &TilemapCache)>,
     tile_info_map: Res<TileRegistry>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
     mut images: ResMut<Assets<Image>>,
@@ -235,7 +235,7 @@ fn update_tilemap_chunk_material(
             .iter_mut()
             .enumerate()
             .for_each(|(idx, pod)| {
-                let id = grid[idx];
+                let id = grid[0][idx];
                 let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
 
                 pod.index = info.atlas_index;

@@ -16,7 +16,7 @@ use crate::{
     config::tile::TileConfigList,
     ui::window::{WindowConfig, window},
     world::{
-        grid::{self, Grid},
+        grid::{self, Grid, GridId},
         renderer::tilemap::Tilemap,
         tile::{self, TileId, TileRegistry},
     },
@@ -75,7 +75,7 @@ fn spawn_debug_ui(mut commands: Commands) {
 }
 
 fn update_tile_map_color_ui(
-    q_tiles: Query<&Grid<TileId>>,
+    q_tiles: Query<&GridId>,
     mut q_containers: Query<&mut ImageNode, With<ImageContainer>>,
     tile_info: Res<TileRegistry>,
     mut images: ResMut<Assets<Image>>,
@@ -95,8 +95,9 @@ fn update_tile_map_color_ui(
     image_node.image = images.add(draw_tile_map_colors(grid, tile_info));
 }
 
-fn draw_tile_map_colors(grid: &Grid<TileId>, tile_info_map: Res<TileRegistry>) -> Image {
+fn draw_tile_map_colors(grid: &GridId, tile_info_map: Res<TileRegistry>) -> Image {
     let data = grid
+        .layer(0)
         .iter()
         .filter_map(|id| {
             tile_info_map.get(id).or_else(|| {

@@ -4,7 +4,7 @@ use crate::{
     config::tile::{TileConfig, TileConfigList},
     world::{
         genesis::generate_grids,
-        grid::Grid,
+        grid::{Grid, GridVisible},
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
     },
@@ -105,7 +105,7 @@ fn process_tile_info_list(
 
 #[allow(clippy::type_complexity)]
 fn update_tile_visibility(
-    q_tiles: Query<(&Tilemap, &mut Grid<TileVisible>)>,
+    q_tiles: Query<(&Tilemap, &mut GridVisible)>,
     q_camera: Query<
         (&Camera, &GlobalTransform),
         Or<(Changed<GlobalTransform>, Changed<Projection>)>,
@@ -142,11 +142,11 @@ fn update_tile_visibility(
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
             .as_u16vec2();
 
-        grid.fill(TileVisible::default());
+        grid[0].fill(TileVisible::default());
 
         for y in min_tile.y..=max_tile.y {
             for x in min_tile.x..=max_tile.x {
-                grid.set(x, y, TileVisible::visible());
+                grid.set(x, y, 0, TileVisible::visible());
             }
         }
     }
