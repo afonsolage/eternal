@@ -11,6 +11,7 @@
 
 const WEIGHT_NONE = 65535u;
 const DISCARD: TileData = TileData(65535u, 0u);
+const BORDER_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
 
 struct TileData {
     atlas_index: u32,
@@ -47,45 +48,73 @@ fn get_tile_data(tile_pos: vec2<i32>) -> TileData {
     return TileData(atlas_index, weight);
 }
 
-fn blend_neighbors(grid_pos: vec2<f32>) -> vec4<f32> {
-    let tile_pos = vec2<i32>(floor(grid_pos));
+fn is_inside_border(uv: vec2<f32>) -> bool {
+    return all(vec4(uv > BORDER_RECT.xy, uv < BORDER_RECT.zw));
+}
 
-    let center_uv = fract(grid_pos);
-    let center_pos = tile_pos;
+fn get_border_dir(uv: vec2<f32>) -> vec2<i32> {
+    let above_max = step(BORDER_RECT.zw, uv);
+    let bellow_min = step(uv, BORDER_RECT.xy);
+    return vec2<i32>(above_max - bellow_min);
+}
 
-    var final_color = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-    var total_influence = 0.0;
+fn calc_blend_factor(uv: vec2<f32>) -> vec2<f32> {
+    let alpha_x = smoothstep(BORDER_RECT.x, 0.0, uv.x) + smoothstep(BORDER_RECT.z, 1.0, uv.x);
+    let alpha_y = smoothstep(BORDER_RECT.y, 0.0, uv.y) + smoothstep(BORDER_RECT.w, 1.0, uv.y);
 
-    for (var y: i32 = -1; y <= 1; y = y + 1) {
-        for (var x: i32 = -1; x <= 1; x = x + 1) {
-            let xy = vec2<i32>(x, y);
-            let nbor_pos = center_pos + xy;
+    return vec2<f32>(alpha_x, alpha_y);
+}
 
-            let nbor_tile_data = get_tile_data(nbor_pos);
+fn blend_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>) -> vec4<f32> {
+    let tile_data = get_tile_data(tile_pos);
+    var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
 
-            if (nbor_tile_data.atlas_index == DISCARD.atlas_index) {
-                continue;
-            }
-
-            let nbor_uv_center = center_uv - vec2<f32>(xy);
-
-            let nbor_influence_x = max(0.0, 1.0 - abs(nbor_uv_center.x));
-            let nbor_influence_y = max(0.0, 1.0 - abs(nbor_uv_center.y));
-
-            let nbor_influence = nbor_influence_x * nbor_influence_y * f32(nbor_tile_data.weight);
-
-            let nbor_color = get_atlas_index_color(nbor_tile_data.atlas_index, center_uv);
-
-            final_color += nbor_color * nbor_influence; 
-            total_influence += nbor_influence;
-        }
+    // No blend to do if we are inside the border
+    if (is_inside_border(uv)) {
+        return base_color;
     }
 
-    if (total_influence > 0.0) {
-        return final_color / total_influence;
-    } else {
-        return vec4<f32>(0.0, 0.0, 0.0, 0.0);
+    // Calculate the blend factor where 0.0 is no blend and 1.0 is high blend.
+    // 0.0 means base color and 1.0 means neighbor color.
+    // So a blend factor of 0.5 will mix the two color half and half.
+    let blend_factor = calc_blend_factor(uv);
+
+    // Get which border the uv is closer, to get the closer neighbor
+    let dir = get_border_dir(uv);
+
+    // Get the horizontal, vertical and diagonal neighbor data
+    var h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0));
+    var v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y));
+    var d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y));
+
+
+    // If the horizontal neighbor is higher or if the diagonal neighbor is higher than 
+    // the vertical neighbor, blend on the horizontal axis.
+    var alpha_x = 0.0;
+    if ((h_nbor_data.weight < WEIGHT_NONE && h_nbor_data.weight > tile_data.weight) ||
+        (d_nbor_data.weight < WEIGHT_NONE && d_nbor_data.weight > v_nbor_data.weight)) {
+        alpha_x = blend_factor.x;
     }
+
+    // If the vertical neighbor is higher or if the diagonal neighbor is higher than 
+    // the horizontal neighbor, blend on the vertical axis.
+    var alpha_y = 0.0;
+    if ((v_nbor_data.weight < WEIGHT_NONE && v_nbor_data.weight > tile_data.weight) ||
+        (d_nbor_data.weight < WEIGHT_NONE && d_nbor_data.weight > h_nbor_data.weight)) {
+        alpha_y = blend_factor.y;
+    }
+
+    // Get the neighborhood colors
+    let h_color = get_atlas_index_color(h_nbor_data.atlas_index, uv);
+    let v_color = get_atlas_index_color(v_nbor_data.atlas_index, uv);
+    let d_color = get_atlas_index_color(d_nbor_data.atlas_index, uv);
+
+    // First blend on horizontal axis, then blend on vertical axis
+    let bottom_blend = mix(base_color, h_color, alpha_x);
+    let top_blend = mix(v_color, d_color, alpha_x);
+    let final_color = mix(bottom_blend, top_blend, alpha_y);
+
+    return final_color;
 }
 
 struct VertexOutput {
@@ -99,15 +128,16 @@ struct VertexOutput {
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let dims = textureDimensions(tiles_data);
 
+    // Tile position relative to the current grid;
     var grid_pos = vec2<f32>(in.world_pos.x, in.world_pos.y) / tile_size;
-    grid_pos = clamp(
-         grid_pos,
-         vec2<f32>(0.0),
-         vec2<f32>(dims),
-    );
+    var uv = fract(grid_pos);
 
-    // Calculate the current tile position in the chunk mesh;
-    let tile_pos = vec2<i32>(floor(grid_pos));
+    // Clamp to avoid artifacts on the edge and convert to int
+    let tile_pos = clamp(
+        vec2<i32>(grid_pos),
+        vec2<i32>(0),
+        vec2<i32>(dims)
+    );
 
     // Get the info about current tile
     let tile_data = get_tile_data(tile_pos);
@@ -116,5 +146,5 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    return blend_neighbors(grid_pos);
+    return blend_neighbors(tile_pos, uv);
 }
