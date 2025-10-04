@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.17", features = ["track_location", "wayland", "file_watcher", "bevy_dev_tools", "experimental_bevy_feathers"] }
+bevy = { version = "0.17"  }
 bytemuck = "1.23.2"
 thiserror = { version = "2", default-features = false }
 
@@ -15,3 +15,23 @@ bevy_egui = { version = "0.37", default-features = false }
 bevy-inspector-egui = { version = "0.34" }
 
 noise = "0.9"
+
+[features]
+default = ["dev_native"]
+native = [
+    "bevy/wayland",
+]
+dev = [
+    "bevy/dynamic_linking",
+    "bevy/bevy_dev_tools",
+    "bevy/track_location",
+]
+experimental = [
+    "bevy/experimental_bevy_feathers",
+]
+dev_native = [
+    "dev",
+    "native",
+    "experimental",
+    "bevy/file_watcher",
+]

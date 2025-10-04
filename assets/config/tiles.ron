@@ -6,7 +6,7 @@
       atlas: "sheets/terrain.png",
       atlas_index: 5,
       map_color: "#33cc33",
-      blend_tech: Weight(20),
+      blend_tech: Weight(10),
     ),
     (
       kind: Terrain,
@@ -30,7 +30,7 @@
       atlas: "sheets/terrain.png",
       atlas_index: 14,
       map_color: "#808080",
-      blend_tech: Weight(15),
+      blend_tech: Weight(10),
     ),
     (
       kind: Terrain,

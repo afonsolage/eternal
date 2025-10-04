@@ -13,7 +13,7 @@ use crate::{
     world::{
         grid::{self, Grid},
         renderer::tilemap::Tilemap,
-        tile::{self, TileId, TileRegistry, TileVisible},
+        tile::{self, TileElevation, TileId, TileRegistry, TileVisible},
     },
 };
 
@@ -25,7 +25,7 @@ impl Plugin for DrawGridsPlugin {
         app.add_systems(
             Update,
             (
-                draw_grid_texts.run_if(
+                draw_grid_info.run_if(
                     resource_changed::<DrawGridsConfig>
                         .or(|q: Query<(), Changed<Grid<TileVisible>>>| !q.is_empty()),
                 ),
@@ -52,7 +52,7 @@ impl Plugin for DrawGridsPlugin {
 struct DrawGridsConfig {
     show_ids: bool,
     show_grid: bool,
-    show_text: bool,
+    show_info: bool,
 }
 
 #[derive(Component)]
@@ -105,13 +105,13 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                         ),
                     ),
                     (
-                        checkbox((), Spawn(Text::new("Show Texts"))),
+                        checkbox((), Spawn(Text::new("Show Info"))),
                         observe(
                             |change: On<ValueChange<bool>>,
                              mut commands: Commands,
                              mut config: ResMut<DrawGridsConfig>| {
-                                config.show_text = change.value;
-                                if config.show_text {
+                                config.show_info = change.value;
+                                if config.show_info {
                                     commands.entity(change.source).insert(Checked);
                                 } else {
                                     commands.entity(change.source).remove::<Checked>();
@@ -126,7 +126,11 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
     ));
 }
 
-fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
+fn format_tile_info(index: usize, ids: &Grid<TileId>, elevations: &Grid<TileElevation>) -> String {
+    format!("id: {}\nele: {:.02}", *ids[index], *elevations[index])
+}
+
+fn tile_info_bundle(tile_size: Vec2, index: usize, info: String) -> impl Bundle {
     let tile_pos = U16Vec2::new(
         index as u16 % grid::DIMS.x as u16,
         index as u16 / grid::DIMS.x as u16,
@@ -134,7 +138,7 @@ fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
     let tile_center = (tile_pos.as_vec2() * tile_size + (tile_size / 2.0)).extend(0.03);
 
     (
-        Name::new(format!("Tile Text {}, {}", tile_pos.x, tile_pos.y)),
+        Name::new(format!("Tile Info {}, {}", tile_pos.x, tile_pos.y)),
         Text2d::default(),
         Transform::from_translation(tile_center).with_scale(Vec3::splat(0.5)),
         children![
@@ -152,9 +156,9 @@ fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
             ),
             (
                 Transform::from_xyz(0.0, 0.0, 0.0),
-                Text2d::new(id.to_string()),
+                Text2d::new(info),
                 TextFont {
-                    font_size: 12.0,
+                    font_size: 10.0,
                     ..Default::default()
                 }
             )
@@ -166,7 +170,7 @@ fn tile_text_bundle(tile_size: Vec2, index: usize, id: TileId) -> impl Bundle {
 fn on_add_tilemap_insert_cache(add: On<Add, Tilemap>, mut commands: Commands) {
     let root = commands
         .spawn((
-            Name::new("Grid Overlay - texts"),
+            Name::new("Grid Overlay - info"),
             Transform::default(),
             Text2d::default(),
         ))
@@ -174,14 +178,14 @@ fn on_add_tilemap_insert_cache(add: On<Add, Tilemap>, mut commands: Commands) {
 
     commands
         .entity(add.entity)
-        .insert(DrawGridTextCache {
+        .insert(DrawGridInfoCache {
             root,
             entities: Grid::new(),
         })
         .observe(
-            |remove: On<Remove, DrawGridTextCache>,
+            |remove: On<Remove, DrawGridInfoCache>,
              mut commands: Commands,
-             q: Query<&DrawGridTextCache>| {
+             q: Query<&DrawGridInfoCache>| {
                 if let Ok(cache) = q.get(remove.entity) {
                     commands.entity(cache.root).despawn();
                 }
@@ -190,27 +194,28 @@ fn on_add_tilemap_insert_cache(add: On<Add, Tilemap>, mut commands: Commands) {
 }
 
 #[derive(Component)]
-struct DrawGridTextCache {
+struct DrawGridInfoCache {
     root: Entity,
     entities: Grid<Option<Entity>>,
 }
 
 #[allow(clippy::type_complexity)]
-fn draw_grid_texts(
+fn draw_grid_info(
     q_tilemaps: Query<(
         &Tilemap,
         &Grid<TileVisible>,
         &Grid<TileId>,
-        &mut DrawGridTextCache,
+        &Grid<TileElevation>,
+        &mut DrawGridInfoCache,
     )>,
     config: Res<DrawGridsConfig>,
     mut commands: Commands,
 ) {
-    for (tilemap, grid_visible, grid_id, mut cache) in q_tilemaps {
-        debug!("Updating grid texts!");
+    for (tilemap, grid_visible, grid_id, grid_elevation, mut cache) in q_tilemaps {
+        debug!("Updating grid tile infos!");
 
         // Despawn all text entities if config says so
-        if !config.show_text {
+        if !config.show_info {
             cache
                 .entities
                 .iter_mut()
@@ -221,7 +226,7 @@ fn draw_grid_texts(
             return;
         }
 
-        // Avoid spawning a huge number of texts when the camera zooms out
+        // Avoid spawning a huge number of infos when the camera zooms out
         if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
             cache.entities.iter_mut().for_each(|t| {
                 if let Some(e) = t.take() {
@@ -243,8 +248,9 @@ fn draw_grid_texts(
                         despawn.push(entity);
                         cache.entities[index] = None;
                     } else if tile_visible.is_visible() && cache.entities[index].is_none() {
+                        let info = format_tile_info(index, grid_id, grid_elevation);
                         let entity = parent
-                            .spawn(tile_text_bundle(tilemap.tile_size, index, grid_id[index]))
+                            .spawn(tile_info_bundle(tilemap.tile_size, index, info))
                             .id();
                         cache.entities[index] = Some(entity);
                     }
