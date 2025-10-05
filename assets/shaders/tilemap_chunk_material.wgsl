@@ -49,6 +49,7 @@ fn vertex(in: Vertex) -> VertexOutput {
     return out;
 }
 
+/// Get the final color of the uv at the atlas index.
 fn get_atlas_index_color(atlas_index: u32, uv: vec2<f32>) -> vec4<f32> {
     let atlas_uv = vec2<f32>(
         f32(atlas_index % atlas_dims.x),
@@ -62,6 +63,8 @@ fn get_atlas_index_color(atlas_index: u32, uv: vec2<f32>) -> vec4<f32> {
     return textureSample(atlas_texture, atlas_sampler, final_uv);
 }
 
+/// Get the tile data at the given tile position and layer.
+/// Returns `DISCARD` data if the position is invalid
 fn get_tile_data(tile_pos: vec2<i32>, layer: u32) -> TileData {
     let dims = vec2<i32>(textureDimensions(tiles_data));
 
@@ -79,6 +82,7 @@ fn get_tile_data(tile_pos: vec2<i32>, layer: u32) -> TileData {
     return TileData(atlas_index, weight);
 }
 
+/// Check if a given UV is inside the given rect (min_x, min_y, max_x, max_y)
 fn is_inside_rect(uv: vec2<f32>, rect: vec4<f32>) -> bool {
     return all(vec4(uv > rect.xy, uv < rect.zw));
 }
@@ -91,6 +95,9 @@ fn get_border_dir(uv: vec2<f32>) -> vec2<i32> {
     return vec2<i32>(above_max - bellow_min);
 }
 
+/// Calculate the blend factor where 0.0 is no blend and 1.0 is high blend.
+/// 0.0 means base color and 1.0 means neighbor color.
+/// So a blend factor of 0.5 will mix the two color half and half.
 fn calc_blend_factor(uv: vec2<f32>) -> vec2<f32> {
     let alpha_x = smoothstep(BLEND_RECT.x, 0.0, uv.x) + smoothstep(BLEND_RECT.z, 1.0, uv.x);
     let alpha_y = smoothstep(BLEND_RECT.y, 0.0, uv.y) + smoothstep(BLEND_RECT.w, 1.0, uv.y);
@@ -98,6 +105,7 @@ fn calc_blend_factor(uv: vec2<f32>) -> vec2<f32> {
     return vec2<f32>(alpha_x, alpha_y);
 }
 
+/// Blend the colors of the neighbor floors at edge transition.
 fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
     let tile_data = get_tile_data(tile_pos, layer);
     var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
@@ -107,9 +115,6 @@ fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4
         return base_color;
     }
 
-    // Calculate the blend factor where 0.0 is no blend and 1.0 is high blend.
-    // 0.0 means base color and 1.0 means neighbor color.
-    // So a blend factor of 0.5 will mix the two color half and half.
     let blend_factor = calc_blend_factor(uv);
 
     // Get which border the uv is closer, to get the closer neighbor
@@ -149,14 +154,17 @@ fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4
     return final_color;
 }
 
+/// Get the final color of the wall outline. This function computes the wall
+/// color and the corners of the wall, to give a better illusion of depth.
 fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
     let is_at_diag = abs(uv.x - uv.y) < 0.01 || abs(uv.x + uv.y - 1.0) < 0.01;
-    if (!is_at_diag) {
-        return WALL_OUTLINE;
-    } else {
+
+    // If the current uv coordinates is in a "cross"-shape, with matches the corner
+    if (is_at_diag) {
         let dir = get_border_dir(uv);
         let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), layer);
 
+        // Only draw the corner depth color if there is no neighbor
         if (d_nbor_data.atlas_index == DISCARD.atlas_index) {
             let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), layer);
             let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), layer);
@@ -164,10 +172,13 @@ fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
             if (h_nbor_data.atlas_index == DISCARD.atlas_index &&
                 v_nbor_data.atlas_index == DISCARD.atlas_index) {
 
+                // If both neighbor are missing, draw a brigther color
                 return WALL_OUTLINE * vec4<f32>(5.0, 5.0, 5.0, 1.0);
+
             } else if (h_nbor_data.atlas_index != DISCARD.atlas_index &&
                        v_nbor_data.atlas_index != DISCARD.atlas_index) {
 
+                // If both neighbor are present, draw a darker color
                 return WALL_OUTLINE * vec4<f32>(0.5, 0.5, 0.5, 1.0);
             }
         }
@@ -176,20 +187,26 @@ fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
     return WALL_OUTLINE;
 }
 
+/// Draw the wall outline. This is need to give the illusion of dept when
+/// drawing the tile of a wall, which will be ablove some floor tile.
 fn draw_outline_wall(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
     let tile_data = get_tile_data(tile_pos, layer);
     var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
 
+    // The `WALL_RECT` defines the width of the wall outline
     if (!is_inside_rect(uv, WALL_RECT)) {
         for (var y = -1; y <= 1; y = y + 1) {
             for (var x = -1; x <= 1; x = x + 1) {
                 if (x == 0 && y == 0) { continue ;}
 
                 let dir = vec2<i32>(x, y);
+
+                // Only draw if this draw is near an valid edge of the wall rect
                 let h_valid = (x > 0 && uv.x > WALL_RECT.z) || (x < 0 && uv.x < WALL_RECT.x) || (x == 0);
                 let v_valid = (y > 0 && uv.y > WALL_RECT.w) || (y < 0 && uv.y < WALL_RECT.y) || (y == 0);
        
                 if (h_valid && v_valid) {
+                    // If there is no tile neighboring this tile
                     let nbor_data = get_tile_data(tile_pos + dir, layer);
                     if (nbor_data.atlas_index == DISCARD.atlas_index) {
                         return get_wall_color(uv, tile_pos, layer);
@@ -229,10 +246,12 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     // Get the info about current tile
     let tile_data = get_tile_data(tile_pos, in.layer);
 
+    // If there is no valid tile there, just skip this frag
     if (tile_data.atlas_index == DISCARD.atlas_index) {
         discard;
     }
 
+    // Layer 0 is floor, while layer 1 is wall.
     if in.layer == 0 {
         return blend_floor_neighbors(tile_pos, uv, in.layer);
     } else if in.layer == 1 {
