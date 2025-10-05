@@ -18,6 +18,13 @@ pub enum LayerIndex {
     ROOF,
 }
 
+impl LayerIndex {
+    pub const fn count() -> usize {
+        //std::mem::variant_count::<Self>()
+        3
+    }
+}
+
 #[derive(Default, Clone, Debug, Component)]
 pub struct Grid<T, const N: usize = 1>(Vec<Layer<T>>);
 

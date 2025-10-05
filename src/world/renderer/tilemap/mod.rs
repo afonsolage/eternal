@@ -20,7 +20,7 @@ use bevy::{
     image::Image,
     log::{debug, error, warn},
     math::{IVec2, U8Vec2, U16Vec2, UVec2, Vec2, primitives::Rectangle},
-    mesh::{Mesh, Mesh2d, PrimitiveTopology},
+    mesh::{Mesh, Mesh2d, MeshTag, PrimitiveTopology},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
     reflect::Reflect,
@@ -35,7 +35,7 @@ use material::{TilePod, TilemapChunkMaterial};
 use crate::{
     config::tile::TileConfigList,
     world::{
-        grid::{self, Grid, GridId},
+        grid::{self, Grid, GridId, LAYER_SIZE, LayerIndex},
         tile::{self, TileId, TileRegistry},
     },
 };
@@ -121,6 +121,7 @@ fn spawn_single_chunk(
         .spawn((
             Mesh2d(mesh),
             MeshMaterial2d(material),
+            MeshTag(1),
             Transform::from_translation(chunk_world_pos).with_scale(tile_size.extend(1.0)),
             TilemapChunkPos(chunk_pos),
             Name::new(format!("Chunk {chunk_pos}")),
@@ -148,7 +149,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
     let tile_size = tile_map.tile_size;
 
     let mut images = world.resource_mut::<Assets<Image>>();
-    let tiles_data = images.add(material::init_tile_data());
+    let tiles_data = images.add(material::init_tile_data(LayerIndex::count()));
 
     let mut materials = world.resource_mut::<Assets<TilemapChunkMaterial>>();
     let material = materials.add(TilemapChunkMaterial {
@@ -233,6 +234,7 @@ fn update_tilemap_chunk_material(
 
         tile_data_pods
             .iter_mut()
+            .take(LAYER_SIZE)
             .enumerate()
             .for_each(|(idx, pod)| {
                 let id = grid[idx];

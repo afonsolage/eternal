@@ -15,7 +15,7 @@ use crate::world::grid;
 
 use super::TILES_PER_CHUNK;
 
-const FRAGMENT_SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
+const SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
@@ -48,13 +48,17 @@ pub struct TilemapChunkMaterial {
     #[uniform(4)]
     pub tile_size: Vec2,
     /// The encoded ``TilePod`` to be sent to fragment shader
-    #[texture(5, sample_type = "u_int")]
+    #[texture(5, dimension = "2d_array", sample_type = "u_int")]
     pub tiles_data: Handle<Image>,
 }
 
 impl Material2d for TilemapChunkMaterial {
     fn fragment_shader() -> ShaderRef {
-        FRAGMENT_SHADER_PATH.into()
+        SHADER_PATH.into()
+    }
+
+    fn vertex_shader() -> ShaderRef {
+        SHADER_PATH.into()
     }
 
     fn alpha_mode(&self) -> AlphaMode2d {
@@ -62,8 +66,9 @@ impl Material2d for TilemapChunkMaterial {
     }
 }
 
-pub fn init_tile_data() -> Image {
-    let empty_data = vec![0xFF; grid::DIMS.element_product() as usize * size_of::<TilePod>()];
+pub fn init_tile_data(layers: usize) -> Image {
+    let empty_data =
+        vec![0xFF; grid::DIMS.element_product() as usize * size_of::<TilePod>() * layers];
     Image {
         data: Some(empty_data),
         texture_descriptor: TextureDescriptor {
@@ -71,7 +76,7 @@ pub fn init_tile_data() -> Image {
             size: Extent3d {
                 width: grid::DIMS.x,
                 height: grid::DIMS.y,
-                depth_or_array_layers: 1,
+                depth_or_array_layers: layers as u32,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -81,7 +86,6 @@ pub fn init_tile_data() -> Image {
             view_formats: &[],
         },
         sampler: ImageSampler::nearest(),
-        asset_usage: RenderAssetUsages::RENDER_WORLD | RenderAssetUsages::MAIN_WORLD,
         ..Default::default()
     }
 }
