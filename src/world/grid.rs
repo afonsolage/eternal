@@ -5,7 +5,7 @@ use crate::world::tile::{TileElevation, TileId, TileVisible};
 pub const DIMS: UVec2 = UVec2::new(256, 256);
 pub const LAYER_SIZE: usize = (DIMS.x * DIMS.y) as usize;
 
-pub type GridId = Grid<TileId>;
+pub type GridId = Grid<TileId, { LAYERS.len() }>;
 pub type GridVisible = Grid<TileVisible>;
 pub type GridElevation = Grid<TileElevation>;
 
@@ -14,22 +14,27 @@ pub type GridElevation = Grid<TileElevation>;
 pub enum LayerIndex {
     #[default]
     FLOOR,
-    WALLS,
+    WALL,
     ROOF,
 }
 
+pub const LAYERS: [LayerIndex; 3] = [LayerIndex::FLOOR, LayerIndex::WALL, LayerIndex::ROOF];
+
 impl LayerIndex {
     pub const fn count() -> usize {
-        //std::mem::variant_count::<Self>()
-        3
+        LAYERS.len()
     }
 
     pub fn height(&self) -> f32 {
         match self {
             LayerIndex::FLOOR => 0.0,
-            LayerIndex::WALLS => 1.0,
+            LayerIndex::WALL => 1.0,
             LayerIndex::ROOF => 2.0,
         }
+    }
+
+    pub fn base_index(&self) -> usize {
+        (*self as u32) as usize * LAYER_SIZE
     }
 }
 

@@ -35,7 +35,7 @@ use material::{TilePod, TilemapChunkMaterial};
 use crate::{
     config::tile::TileConfigList,
     world::{
-        grid::{self, Grid, GridId, LAYER_SIZE, LayerIndex},
+        grid::{self, Grid, GridId, LAYER_SIZE, LAYERS, LayerIndex},
         tile::{self, TileId, TileRegistry},
     },
 };
@@ -114,7 +114,7 @@ struct TilemapParams {
 }
 
 fn spawn_single_chunk(
-    world: &mut DeferredWorld,
+    commands: &mut Commands,
     chunk_pos: TilemapChunkPos,
     tile_size: Vec2,
     parent: Entity,
@@ -124,8 +124,7 @@ fn spawn_single_chunk(
     let chunk_world_pos = chunk_pos.xy.as_vec2() * chunk_size;
     let chunk_world_pos = chunk_world_pos.extend(chunk_pos.layer.height());
 
-    let chunk_entity = world
-        .commands()
+    commands
         .spawn((
             Mesh2d(mesh),
             MeshMaterial2d(material),
@@ -133,12 +132,9 @@ fn spawn_single_chunk(
             Transform::from_translation(chunk_world_pos).with_scale(tile_size.extend(1.0)),
             chunk_pos,
             Name::new(format!("Chunk {chunk_pos}")),
+            ChildOf(parent),
         ))
-        .id();
-
-    world.commands().entity(parent).add_child(chunk_entity);
-
-    chunk_entity
+        .id()
 }
 
 fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
@@ -172,25 +168,41 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
     let mesh = meshes.add(create_tilemap_chunk_mesh());
 
     let cache = TilemapCache { material, mesh };
-
     let chunks_count = grid::DIMS.as_u16vec2() / TILES_PER_CHUNK;
-    let chunk_pos_entity_map = (0..chunks_count.x)
-        .flat_map(move |x| (0..chunks_count.y).map(move |y| (x, y)))
-        .map(|(x, y)| {
-            let chunk_pos = TilemapChunkPos {
-                xy: U16Vec2::new(x, y),
-                layer: LayerIndex::FLOOR,
-            };
-            let chunk_entity =
-                spawn_single_chunk(&mut world, chunk_pos, tile_size, entity, cache.clone());
-            (chunk_pos, chunk_entity)
-        })
-        .collect();
 
-    world
-        .commands()
-        .entity(entity)
-        .insert((TilemapChunkMap(chunk_pos_entity_map), cache));
+    let mut commands = world.commands();
+
+    let mut chunk_map = TilemapChunkMap::default();
+    for layer in LAYERS {
+        let layer_entity = commands
+            .spawn((
+                Name::new(format!("Layer {layer:?}")),
+                Transform::default(),
+                ChildOf(entity),
+                Visibility::Inherited,
+            ))
+            .id();
+
+        for y in 0..chunks_count.y {
+            for x in 0..chunks_count.x {
+                let chunk_pos = TilemapChunkPos {
+                    xy: U16Vec2::new(x, y),
+                    layer,
+                };
+                let chunk_entity = spawn_single_chunk(
+                    &mut commands,
+                    chunk_pos,
+                    tile_size,
+                    layer_entity,
+                    cache.clone(),
+                );
+
+                chunk_map.insert(chunk_pos, chunk_entity);
+            }
+        }
+    }
+
+    commands.entity(entity).insert((chunk_map, cache));
 }
 
 fn create_tilemap_chunk_mesh() -> Mesh {
@@ -236,26 +248,35 @@ fn update_tilemap_chunk_material(
 
         debug!("Updating material of tilemap.");
 
-        let tile_data_pods: &mut [TilePod] = bytemuck::cast_slice_mut(
-            tile_data_image
-                .data
-                .as_mut()
-                .expect("Material must have been initialized"),
-        );
+        for layer in LAYERS {
+            let tile_data_pods = get_data_pod_layer(layer, tile_data_image);
+            let grid_layer = &grid[layer];
 
-        tile_data_pods
-            .iter_mut()
-            .take(LAYER_SIZE)
-            .enumerate()
-            .for_each(|(idx, pod)| {
-                let id = grid[idx];
-                let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
+            tile_data_pods
+                .iter_mut()
+                .enumerate()
+                .for_each(|(idx, pod)| {
+                    let id = grid_layer[idx];
+                    let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
 
-                pod.index = info.atlas_index;
-                pod.weight = match info.blend_tech {
-                    tile::BlendTech::None => u16::MAX,
-                    tile::BlendTech::Weight(w) => w,
-                }; // TODO: Set height;
-            });
+                    pod.index = info.atlas_index;
+                    pod.weight = match info.blend_tech {
+                        tile::BlendTech::None => u16::MAX,
+                        tile::BlendTech::Weight(w) => w,
+                    };
+                });
+        }
     }
+}
+
+fn get_data_pod_layer(layer: LayerIndex, tile_data_image: &mut Image) -> &mut [TilePod] {
+    let begin = layer.base_index();
+    let end = begin + LAYER_SIZE;
+
+    &mut bytemuck::cast_slice_mut(
+        tile_data_image
+            .data
+            .as_mut()
+            .expect("Material must have been initialized"),
+    )[begin..end]
 }

@@ -16,7 +16,7 @@ use crate::{
     config::tile::TileConfigList,
     ui::window::{WindowConfig, window},
     world::{
-        grid::{self, Grid, GridId},
+        grid::{self, Grid, GridId, LayerIndex},
         renderer::tilemap::Tilemap,
         tile::{self, TileId, TileRegistry},
     },
@@ -96,7 +96,7 @@ fn update_tile_map_color_ui(
 }
 
 fn draw_tile_map_colors(grid: &GridId, tile_info_map: Res<TileRegistry>) -> Image {
-    let data = grid
+    let data = grid[LayerIndex::FLOOR]
         .iter()
         .filter_map(|id| {
             tile_info_map.get(id).or_else(|| {

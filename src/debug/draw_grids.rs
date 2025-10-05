@@ -11,11 +11,15 @@ use bevy::{
 use crate::{
     ui::window::{WindowConfig, window},
     world::{
-        grid::{self, Grid, GridElevation, GridId, GridVisible},
+        grid::{self, Grid, GridElevation, GridId, GridVisible, LayerIndex},
         renderer::tilemap::Tilemap,
-        tile::{self, TileId, TileRegistry, TileVisible},
+        tile::{self, TileRegistry, TileVisible},
     },
 };
+
+const WIREFRAME_HEIGHT: f32 = 0.3;
+const INFO_HEIGHT: f32 = 0.2;
+const IDS_HEIGHT: f32 = 0.2;
 
 pub struct DrawGridsPlugin;
 
@@ -127,7 +131,11 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
 }
 
 fn format_tile_info(index: usize, ids: &GridId, elevations: &GridElevation) -> String {
-    format!("id: {}\nele: {:.02}", *ids[index], *elevations[index])
+    let layer = LayerIndex::FLOOR;
+    format!(
+        "{layer:?}: {}\nele: {:.02}",
+        *ids[layer][index], *elevations[index]
+    )
 }
 
 fn tile_info_bundle(tile_size: Vec2, index: usize, info: String) -> impl Bundle {
@@ -135,7 +143,7 @@ fn tile_info_bundle(tile_size: Vec2, index: usize, info: String) -> impl Bundle 
         index as u16 % grid::DIMS.x as u16,
         index as u16 / grid::DIMS.x as u16,
     );
-    let tile_center = (tile_pos.as_vec2() * tile_size + (tile_size / 2.0)).extend(0.03);
+    let tile_center = (tile_pos.as_vec2() * tile_size + (tile_size / 2.0)).extend(INFO_HEIGHT);
 
     (
         Name::new(format!("Tile Info {}, {}", tile_pos.x, tile_pos.y)),
@@ -264,7 +272,7 @@ fn draw_grid_info(
 }
 
 fn draw_grid_wireframe(
-    q_tiles: Query<(&Grid<TileId>, &Tilemap)>,
+    q_tiles: Query<(&GridId, &Tilemap)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -310,7 +318,8 @@ fn draw_grid_wireframe(
                 Name::new("Grid Overlay - wireframe"),
                 Mesh2d(mesh),
                 MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, 0.02).with_scale(tilemap.tile_size.extend(1.0)),
+                Transform::from_xyz(0.0, 0.0, WIREFRAME_HEIGHT)
+                    .with_scale(tilemap.tile_size.extend(1.0)),
             ))
             .id();
 
@@ -319,7 +328,7 @@ fn draw_grid_wireframe(
 }
 
 fn draw_grid_tile_ids(
-    q_tiles: Query<(&Grid<TileId>, &Tilemap)>,
+    q_tiles: Query<(&GridId, &Tilemap)>,
     registry: Res<TileRegistry>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -338,6 +347,8 @@ fn draw_grid_tile_ids(
     debug!("Drawing grid tile ids");
 
     for (grid, tilemap) in q_tiles {
+        let layer = &grid[LayerIndex::FLOOR];
+
         let mut positions = vec![];
         let mut colors = vec![];
         let mut indices = vec![];
@@ -346,7 +357,7 @@ fn draw_grid_tile_ids(
         for y in 0..grid::DIMS.y {
             for x in 0..grid::DIMS.x {
                 let info = registry
-                    .get(grid.get(x as u16, y as u16))
+                    .get(layer.get(x as u16, y as u16))
                     .unwrap_or(&tile::NONE_INFO);
 
                 let (x, y) = (x as f32, y as f32);
@@ -384,7 +395,7 @@ fn draw_grid_tile_ids(
                 Name::new("Grid Overlay - TileIds"),
                 Mesh2d(mesh),
                 MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, 0.01).with_scale(tilemap.tile_size.extend(1.0)),
+                Transform::from_xyz(0.0, 0.0, IDS_HEIGHT).with_scale(tilemap.tile_size.extend(1.0)),
             ))
             .id();
 

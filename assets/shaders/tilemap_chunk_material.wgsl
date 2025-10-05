@@ -41,6 +41,7 @@ fn vertex(in: Vertex) -> VertexOutput {
     out.clip_pos = mesh2d_functions::mesh2d_position_world_to_clip(out.world_pos);
 
     out.world_normal = mesh2d_functions::mesh2d_normal_local_to_world(in.normal, in.instance_index);
+    out.layer = mesh2d_functions::get_tag(in.instance_index);
 
     return out;
 }
