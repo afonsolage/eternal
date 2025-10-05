@@ -18,6 +18,11 @@ const BLEND_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
 const WALL_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
 const WALL_OUTLINE = vec4<f32>(0.03, 0.03, 0.03, 1.0);
 
+const SHADOW_INTENSITY = 0.8;
+
+const FLOOR_LAYER = 0u;
+const WALL_LAYER = 1u;
+
 struct TileData {
     atlas_index: u32,
     weight: u32,
@@ -106,8 +111,8 @@ fn calc_blend_factor(uv: vec2<f32>) -> vec2<f32> {
 }
 
 /// Blend the colors of the neighbor floors at edge transition.
-fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
-    let tile_data = get_tile_data(tile_pos, layer);
+fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>) -> vec4<f32> {
+    let tile_data = get_tile_data(tile_pos, FLOOR_LAYER);
     var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
 
     // No blend to do if we are inside the border
@@ -121,9 +126,9 @@ fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4
     let dir = get_border_dir(uv);
 
     // Get the horizontal, vertical and diagonal neighbor data
-    var h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), layer);
-    var v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), layer);
-    var d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), layer);
+    var h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), FLOOR_LAYER);
+    var v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), FLOOR_LAYER);
+    var d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), FLOOR_LAYER);
 
     // If the horizontal neighbor is higher or if the diagonal neighbor is higher than 
     // the vertical neighbor, blend on the horizontal axis.
@@ -154,32 +159,92 @@ fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4
     return final_color;
 }
 
+/// Check if there is a wall in nearby in the layer above and cast a shadow
+fn cast_shadow(tile_pos: vec2<i32>, uv: vec2<f32>, color: vec4<f32>) -> vec4<f32> {
+    // if there is an wall above, just cast shadow max intensity
+    if (get_tile_data(tile_pos, WALL_LAYER).atlas_index != DISCARD.atlas_index) {
+        return vec4<f32>(color.rgb * (1.0 - SHADOW_INTENSITY), color.a);
+    }
+
+    // NOTE: It may be possible to use this to cast directional shadow, base on sun dir.
+    let shadow_thickness = vec4<f32>(0.5, 0.5, 0.5, 0.5);
+
+    var total_intensity = 0.0;
+
+    // Pre-calculate shadow values for each edge based on the fragment's uv
+    let top_shadow = smoothstep(1.0 - shadow_thickness.w, 1.0, uv.y);
+    let bottom_shadow = 1.0 - smoothstep(0.0, shadow_thickness.y, uv.y);
+    let right_shadow = smoothstep(1.0 - shadow_thickness.z, 1.0, uv.x);
+    let left_shadow = 1.0 - smoothstep(0.0, shadow_thickness.x, uv.x);
+
+    for (var y = -1; y <= 1; y = y + 1) {
+        for (var x = -1; x <= 1; x = x + 1) {
+            if (x == 0 && y == 0) { continue; }
+
+            let dir = vec2<i32>(x, y);
+            let neighbor_wall = get_tile_data(tile_pos + dir, WALL_LAYER);
+
+            if (neighbor_wall.atlas_index != DISCARD.atlas_index) {
+                var shadow = vec2<f32>(0.0);
+
+                if (dir.x > 0) {
+                    shadow.x = right_shadow;
+                } else if (dir.x < 0) {
+                    shadow.x = left_shadow;
+                }
+
+                if (dir.y > 0) {
+                    shadow.y = top_shadow;
+                } else if (dir.y < 0) {
+                    shadow.y = bottom_shadow;
+                }
+
+                var final_shadow = 0.0;
+
+                if (dir.x != 0 && dir.y != 0) {
+                    final_shadow = shadow.x * shadow.y;
+                } else {
+                    final_shadow = max(shadow.x, shadow.y);
+                }
+
+                total_intensity = max(total_intensity, final_shadow);
+            }
+        }
+    }
+
+    if (total_intensity > 0) {
+        return vec4<f32>(color.rgb * (1.0 - total_intensity * SHADOW_INTENSITY), color.a);
+    } else {
+        return color;
+    }
+}
+
 /// Get the final color of the wall outline. This function computes the wall
 /// color and the corners of the wall, to give a better illusion of depth.
-fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
+fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>) -> vec4<f32> {
     let is_at_diag = abs(uv.x - uv.y) < 0.01 || abs(uv.x + uv.y - 1.0) < 0.01;
 
     // If the current uv coordinates is in a "cross"-shape, with matches the corner
     if (is_at_diag) {
         let dir = get_border_dir(uv);
-        let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), layer);
+        let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), WALL_LAYER);
 
         // Only draw the corner depth color if there is no neighbor
         if (d_nbor_data.atlas_index == DISCARD.atlas_index) {
-            let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), layer);
-            let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), layer);
+            let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), WALL_LAYER);
+            let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), WALL_LAYER);
 
             if (h_nbor_data.atlas_index == DISCARD.atlas_index &&
                 v_nbor_data.atlas_index == DISCARD.atlas_index) {
 
                 // If both neighbor are missing, draw a brigther color
-                return WALL_OUTLINE * vec4<f32>(5.0, 5.0, 5.0, 1.0);
+                return vec4<f32>(WALL_OUTLINE.xyz * 2.0, 1.0);
 
             } else if (h_nbor_data.atlas_index != DISCARD.atlas_index &&
                        v_nbor_data.atlas_index != DISCARD.atlas_index) {
 
                 // If both neighbor are present, draw a darker color
-                return WALL_OUTLINE * vec4<f32>(0.5, 0.5, 0.5, 1.0);
+                return vec4<f32>(WALL_OUTLINE.xyz * 0.5, 1.0);
             }
         }
     }
@@ -189,8 +254,8 @@ fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
 
 /// Draw the wall outline. This is need to give the illusion of dept when
 /// drawing the tile of a wall, which will be ablove some floor tile.
-fn draw_outline_wall(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
-    let tile_data = get_tile_data(tile_pos, layer);
+fn draw_outline_wall(tile_pos: vec2<i32>, uv: vec2<f32>) -> vec4<f32> {
+    let tile_data = get_tile_data(tile_pos, WALL_LAYER);
     var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
 
     // The `WALL_RECT` defines the width of the wall outline
@@ -207,9 +272,9 @@ fn draw_outline_wall(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32
        
                 if (h_valid && v_valid) {
                     // If there is no tile neighboring this tile
-                    let nbor_data = get_tile_data(tile_pos + dir, layer);
+                    let nbor_data = get_tile_data(tile_pos + dir, WALL_LAYER);
                     if (nbor_data.atlas_index == DISCARD.atlas_index) {
-                        return get_wall_color(uv, tile_pos, layer);
+                        return get_wall_color(uv, tile_pos);
                     }
                 }
 
@@ -251,11 +316,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    // Layer 0 is floor, while layer 1 is wall.
-    if in.layer == 0 {
-        return blend_floor_neighbors(tile_pos, uv, in.layer);
-    } else if in.layer == 1 {
-        return draw_outline_wall(tile_pos, uv, in.layer);
+    if in.layer == FLOOR_LAYER {
+        let color = blend_floor_neighbors(tile_pos, uv);
+        return cast_shadow(tile_pos, uv, color);
+    } else if in.layer == WALL_LAYER {
+        return draw_outline_wall(tile_pos, uv);
     } else {
         discard;
     }
