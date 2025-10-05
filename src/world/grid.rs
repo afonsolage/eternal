@@ -9,8 +9,8 @@ pub type GridId = Grid<TileId>;
 pub type GridVisible = Grid<TileVisible>;
 pub type GridElevation = Grid<TileElevation>;
 
-#[derive(Debug, Default, Clone, Copy)]
-#[repr(usize)]
+#[derive(Debug, Default, Clone, Copy, Component, Reflect, Hash, PartialEq, Eq)]
+#[repr(u32)]
 pub enum LayerIndex {
     #[default]
     FLOOR,
@@ -22,6 +22,14 @@ impl LayerIndex {
     pub const fn count() -> usize {
         //std::mem::variant_count::<Self>()
         3
+    }
+
+    pub fn height(&self) -> f32 {
+        match self {
+            LayerIndex::FLOOR => 0.0,
+            LayerIndex::WALLS => 1.0,
+            LayerIndex::ROOF => 2.0,
+        }
     }
 }
 

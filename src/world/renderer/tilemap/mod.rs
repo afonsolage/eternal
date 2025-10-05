@@ -81,13 +81,22 @@ impl Default for Tilemap {
     }
 }
 
-#[derive(Component, Default, Clone, Copy, Reflect)]
+#[derive(Component, Default, Clone, Copy, Reflect, Hash, PartialEq, Eq)]
 #[component(immutable)]
-struct TilemapChunkPos(U16Vec2);
+pub struct TilemapChunkPos {
+    xy: U16Vec2,
+    layer: LayerIndex,
+}
+
+impl std::fmt::Display for TilemapChunkPos {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}({})", self.layer, self.xy)
+    }
+}
 
 #[derive(Default, Component, Reflect, Deref, DerefMut)]
 #[component(immutable)]
-pub struct TilemapChunkMap(HashMap<U16Vec2, Entity>);
+pub struct TilemapChunkMap(HashMap<TilemapChunkPos, Entity>);
 
 #[derive(Default, Clone, Component, Reflect)]
 #[component(immutable)]
@@ -106,24 +115,23 @@ struct TilemapParams {
 
 fn spawn_single_chunk(
     world: &mut DeferredWorld,
-    chunk_pos: U16Vec2,
-    layer: i32,
+    chunk_pos: TilemapChunkPos,
     tile_size: Vec2,
     parent: Entity,
     TilemapCache { material, mesh }: TilemapCache,
 ) -> Entity {
     let chunk_size = tile_size * TILES_PER_CHUNK.as_vec2();
-    let chunk_world_pos = chunk_pos.as_vec2() * chunk_size;
-    let chunk_world_pos = chunk_world_pos.extend(layer as f32);
+    let chunk_world_pos = chunk_pos.xy.as_vec2() * chunk_size;
+    let chunk_world_pos = chunk_world_pos.extend(chunk_pos.layer.height());
 
     let chunk_entity = world
         .commands()
         .spawn((
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            MeshTag(1),
+            MeshTag(chunk_pos.layer as u32),
             Transform::from_translation(chunk_world_pos).with_scale(tile_size.extend(1.0)),
-            TilemapChunkPos(chunk_pos),
+            chunk_pos,
             Name::new(format!("Chunk {chunk_pos}")),
         ))
         .id();
@@ -169,9 +177,12 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
     let chunk_pos_entity_map = (0..chunks_count.x)
         .flat_map(move |x| (0..chunks_count.y).map(move |y| (x, y)))
         .map(|(x, y)| {
-            let chunk_pos = U16Vec2::new(x, y);
+            let chunk_pos = TilemapChunkPos {
+                xy: U16Vec2::new(x, y),
+                layer: LayerIndex::FLOOR,
+            };
             let chunk_entity =
-                spawn_single_chunk(&mut world, chunk_pos, 0, tile_size, entity, cache.clone());
+                spawn_single_chunk(&mut world, chunk_pos, tile_size, entity, cache.clone());
             (chunk_pos, chunk_entity)
         })
         .collect();
