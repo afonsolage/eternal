@@ -40,5 +40,12 @@
       map_color: "#ffcc66",
       blend_tech: Weight(1),
     ),
+    (
+      kind: Wall,
+      name: "STONE_WALL",
+      atlas: "sheets/terrain.png",
+      atlas_index: 11,
+      map_color: "#ffcc66",
+    ),
   ]
 )

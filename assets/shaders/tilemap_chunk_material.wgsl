@@ -13,7 +13,10 @@
 
 const WEIGHT_NONE = 65535u;
 const DISCARD: TileData = TileData(65535u, 0u);
-const BORDER_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
+const BLEND_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
+
+const WALL_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
+const WALL_OUTLINE = vec4<f32>(0.03, 0.03, 0.03, 1.0);
 
 struct TileData {
     atlas_index: u32,
@@ -76,29 +79,31 @@ fn get_tile_data(tile_pos: vec2<i32>, layer: u32) -> TileData {
     return TileData(atlas_index, weight);
 }
 
-fn is_inside_border(uv: vec2<f32>) -> bool {
-    return all(vec4(uv > BORDER_RECT.xy, uv < BORDER_RECT.zw));
+fn is_inside_rect(uv: vec2<f32>, rect: vec4<f32>) -> bool {
+    return all(vec4(uv > rect.xy, uv < rect.zw));
 }
 
+/// Return the direction of the closest boder
+/// (-1, 1) means it is closer to the top-left border
 fn get_border_dir(uv: vec2<f32>) -> vec2<i32> {
-    let above_max = step(BORDER_RECT.zw, uv);
-    let bellow_min = step(uv, BORDER_RECT.xy);
+    let above_max = step(BLEND_RECT.zw, uv);
+    let bellow_min = step(uv, BLEND_RECT.xy);
     return vec2<i32>(above_max - bellow_min);
 }
 
 fn calc_blend_factor(uv: vec2<f32>) -> vec2<f32> {
-    let alpha_x = smoothstep(BORDER_RECT.x, 0.0, uv.x) + smoothstep(BORDER_RECT.z, 1.0, uv.x);
-    let alpha_y = smoothstep(BORDER_RECT.y, 0.0, uv.y) + smoothstep(BORDER_RECT.w, 1.0, uv.y);
+    let alpha_x = smoothstep(BLEND_RECT.x, 0.0, uv.x) + smoothstep(BLEND_RECT.z, 1.0, uv.x);
+    let alpha_y = smoothstep(BLEND_RECT.y, 0.0, uv.y) + smoothstep(BLEND_RECT.w, 1.0, uv.y);
 
     return vec2<f32>(alpha_x, alpha_y);
 }
 
-fn blend_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
+fn blend_floor_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
     let tile_data = get_tile_data(tile_pos, layer);
     var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
 
     // No blend to do if we are inside the border
-    if (is_inside_border(uv)) {
+    if (is_inside_rect(uv, BLEND_RECT)) {
         return base_color;
     }
 
@@ -144,6 +149,60 @@ fn blend_neighbors(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> 
     return final_color;
 }
 
+fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>, layer: u32) -> vec4<f32> {
+    let is_at_diag = abs(uv.x - uv.y) < 0.01 || abs(uv.x + uv.y - 1.0) < 0.01;
+    if (!is_at_diag) {
+        return WALL_OUTLINE;
+    } else {
+        let dir = get_border_dir(uv);
+        let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), layer);
+
+        if (d_nbor_data.atlas_index == DISCARD.atlas_index) {
+            let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), layer);
+            let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), layer);
+
+            if (h_nbor_data.atlas_index == DISCARD.atlas_index &&
+                v_nbor_data.atlas_index == DISCARD.atlas_index) {
+
+                return WALL_OUTLINE * vec4<f32>(5.0, 5.0, 5.0, 1.0);
+            } else if (h_nbor_data.atlas_index != DISCARD.atlas_index &&
+                       v_nbor_data.atlas_index != DISCARD.atlas_index) {
+
+                return WALL_OUTLINE * vec4<f32>(0.5, 0.5, 0.5, 1.0);
+            }
+        }
+    }
+
+    return WALL_OUTLINE;
+}
+
+fn draw_outline_wall(tile_pos: vec2<i32>, uv: vec2<f32>, layer: u32) -> vec4<f32> {
+    let tile_data = get_tile_data(tile_pos, layer);
+    var base_color = get_atlas_index_color(tile_data.atlas_index, uv);
+
+    if (!is_inside_rect(uv, WALL_RECT)) {
+        for (var y = -1; y <= 1; y = y + 1) {
+            for (var x = -1; x <= 1; x = x + 1) {
+                if (x == 0 && y == 0) { continue ;}
+
+                let dir = vec2<i32>(x, y);
+                let h_valid = (x > 0 && uv.x > WALL_RECT.z) || (x < 0 && uv.x < WALL_RECT.x) || (x == 0);
+                let v_valid = (y > 0 && uv.y > WALL_RECT.w) || (y < 0 && uv.y < WALL_RECT.y) || (y == 0);
+       
+                if (h_valid && v_valid) {
+                    let nbor_data = get_tile_data(tile_pos + dir, layer);
+                    if (nbor_data.atlas_index == DISCARD.atlas_index) {
+                        return get_wall_color(uv, tile_pos, layer);
+                    }
+                }
+
+            }
+        }
+    }
+
+    return base_color;
+}
+
 struct VertexOutput {
     @builtin(position) clip_pos: vec4<f32>,
     @location(0) world_pos: vec4<f32>,
@@ -174,5 +233,11 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
 
-    return blend_neighbors(tile_pos, uv, in.layer);
+    if in.layer == 0 {
+        return blend_floor_neighbors(tile_pos, uv, in.layer);
+    } else if in.layer == 1 {
+        return draw_outline_wall(tile_pos, uv, in.layer);
+    } else {
+        discard;
+    }
 }

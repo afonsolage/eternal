@@ -16,6 +16,7 @@ pub const NONE_INFO: TileInfo = TileInfo {
 pub enum TileKind {
     #[default]
     Terrain,
+    Wall,
 }
 
 #[derive(Debug, Default, Clone, Copy, Reflect, Deserialize)]
