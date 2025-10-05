@@ -235,7 +235,7 @@ fn update_tilemap_chunk_material(
             .iter_mut()
             .enumerate()
             .for_each(|(idx, pod)| {
-                let id = grid[0][idx];
+                let id = grid[idx];
                 let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
 
                 pod.index = info.atlas_index;

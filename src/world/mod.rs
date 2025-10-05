@@ -142,11 +142,11 @@ fn update_tile_visibility(
             .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
             .as_u16vec2();
 
-        grid[0].fill(TileVisible::default());
+        grid.fill(TileVisible::default());
 
         for y in min_tile.y..=max_tile.y {
             for x in min_tile.x..=max_tile.x {
-                grid.set(x, y, 0, TileVisible::visible());
+                grid.set(x, y, TileVisible::visible());
             }
         }
     }

@@ -97,7 +97,6 @@ fn update_tile_map_color_ui(
 
 fn draw_tile_map_colors(grid: &GridId, tile_info_map: Res<TileRegistry>) -> Image {
     let data = grid
-        .layer(0)
         .iter()
         .filter_map(|id| {
             tile_info_map.get(id).or_else(|| {

@@ -127,7 +127,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
 }
 
 fn format_tile_info(index: usize, ids: &GridId, elevations: &GridElevation) -> String {
-    format!("id: {}\nele: {:.02}", *ids[0][index], *elevations[0][index])
+    format!("id: {}\nele: {:.02}", *ids[index], *elevations[index])
 }
 
 fn tile_info_bundle(tile_size: Vec2, index: usize, info: String) -> impl Bundle {
@@ -218,7 +218,6 @@ fn draw_grid_info(
         if !config.show_info {
             cache
                 .entities
-                .layer_mut(0)
                 .iter_mut()
                 .filter_map(Option::take)
                 .for_each(|e| {
@@ -228,14 +227,8 @@ fn draw_grid_info(
         }
 
         // Avoid spawning a huge number of infos when the camera zooms out
-        if grid_visible
-            .layer(0)
-            .iter()
-            .filter(|t| t.is_visible())
-            .count()
-            > 512
-        {
-            cache.entities.layer_mut(0).iter_mut().for_each(|t| {
+        if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
+            cache.entities.iter_mut().for_each(|t| {
                 if let Some(e) = t.take() {
                     commands.entity(e).despawn();
                 }
@@ -246,21 +239,20 @@ fn draw_grid_info(
         let mut despawn = vec![];
         commands.entity(cache.root).with_children(|parent| {
             grid_visible
-                .layer(0)
                 .iter()
                 .enumerate()
                 .for_each(|(index, tile_visible)| {
                     if !tile_visible.is_visible()
-                        && let Some(entity) = cache.entities[0][index]
+                        && let Some(entity) = cache.entities[index]
                     {
                         despawn.push(entity);
-                        cache.entities[0][index] = None;
-                    } else if tile_visible.is_visible() && cache.entities[0][index].is_none() {
+                        cache.entities[index] = None;
+                    } else if tile_visible.is_visible() && cache.entities[index].is_none() {
                         let info = format_tile_info(index, grid_id, grid_elevation);
                         let entity = parent
                             .spawn(tile_info_bundle(tilemap.tile_size, index, info))
                             .id();
-                        cache.entities[0][index] = Some(entity);
+                        cache.entities[index] = Some(entity);
                     }
                 });
         });
@@ -354,7 +346,7 @@ fn draw_grid_tile_ids(
         for y in 0..grid::DIMS.y {
             for x in 0..grid::DIMS.x {
                 let info = registry
-                    .get(grid.get(x as u16, y as u16, 0))
+                    .get(grid.get(x as u16, y as u16))
                     .unwrap_or(&tile::NONE_INFO);
 
                 let (x, y) = (x as f32, y as f32);

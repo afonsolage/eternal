@@ -30,8 +30,8 @@ pub fn generate_grids() -> (GridId, GridElevation) {
 
             let index = (y * grid::DIMS.x + x) as usize;
 
-            ids[0][index] = TileId::new(id);
-            elevations[0][index] = TileElevation::new(elevation);
+            ids[index] = TileId::new(id);
+            elevations[index] = TileElevation::new(elevation);
         }
     }
 
