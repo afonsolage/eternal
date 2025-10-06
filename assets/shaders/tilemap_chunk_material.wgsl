@@ -317,10 +317,23 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     if in.layer == FLOOR_LAYER {
+#ifdef DISABLE_FLOOR_BLENDING
+        let color = get_atlas_index_color(tile_data.atlas_index, uv);
+#else
         let color = blend_floor_neighbors(tile_pos, uv);
+#endif
+
+#ifdef WALL_HIDE_SHADOW
+        return color;
+#else
         return cast_shadow(tile_pos, uv, color);
+#endif
     } else if in.layer == WALL_LAYER {
+#ifdef WALL_HIDE_OUTLINE
+        return get_atlas_index_color(tile_data.atlas_index, uv);
+#else
         return draw_outline_wall(tile_pos, uv);
+#endif
     } else {
         discard;
     }

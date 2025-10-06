@@ -26,16 +26,18 @@ use bevy::{
     reflect::Reflect,
     sprite_render::{Material2dPlugin, MeshMaterial2d},
     transform::components::Transform,
+    utils::default,
 };
 
 mod material;
 
-use material::{TilePod, TilemapChunkMaterial};
+pub use material::{TilePod, TilemapChunkMaterial};
 
 use crate::{
     config::tile::TileConfigList,
     world::{
-        grid::{self, Grid, GridId, LAYER_SIZE, LAYERS, LayerIndex},
+        grid::{self, Grid, GridId, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
+        renderer::tilemap::material::TilemapChunkMaterialConfig,
         tile::{self, TileId, TileRegistry},
     },
 };
@@ -100,9 +102,9 @@ pub struct TilemapChunkMap(HashMap<TilemapChunkPos, Entity>);
 
 #[derive(Default, Clone, Component, Reflect)]
 #[component(immutable)]
-struct TilemapCache {
-    material: Handle<TilemapChunkMaterial>,
-    mesh: Handle<Mesh>,
+pub struct TilemapCache {
+    pub material: Handle<TilemapChunkMaterial>,
+    pub mesh: Handle<Mesh>,
 }
 
 #[derive(Clone)]
@@ -153,7 +155,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
     let tile_size = tile_map.tile_size;
 
     let mut images = world.resource_mut::<Assets<Image>>();
-    let tiles_data = images.add(material::init_tile_data(LayerIndex::count()));
+    let tiles_data = images.add(material::init_tile_data(LAYERS_COUNT));
 
     let mut materials = world.resource_mut::<Assets<TilemapChunkMaterial>>();
     let material = materials.add(TilemapChunkMaterial {
@@ -162,6 +164,11 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
         tiles_per_chunk: TILES_PER_CHUNK.as_uvec2(),
         tile_size,
         tiles_data,
+        config: Some(TilemapChunkMaterialConfig {
+            disable_floor_blending: true,
+            wall_hide_outline: true,
+            wall_hide_shadow: true,
+        }),
     });
 
     let mut meshes = world.resource_mut::<Assets<Mesh>>();
@@ -180,6 +187,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
                 Transform::default(),
                 ChildOf(entity),
                 Visibility::Inherited,
+                layer,
             ))
             .id();
 

@@ -1,6 +1,7 @@
 use bevy::{
     asset::{Asset, Handle, RenderAssetUsages},
     image::{Image, ImageSampler},
+    log::debug,
     math::{UVec2, Vec2},
     reflect::Reflect,
     render::render_resource::{
@@ -33,7 +34,23 @@ impl TilePod {
     }
 }
 
+impl From<&TilemapChunkMaterial> for TilemapChunkMaterialConfig {
+    fn from(material: &TilemapChunkMaterial) -> Self {
+        debug!("Material config: {:?}", material.config);
+        material.config.unwrap_or_default()
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Clone, Copy, Reflect, PartialEq, Eq, Hash)]
+pub struct TilemapChunkMaterialConfig {
+    pub disable_floor_blending: bool,
+    pub wall_hide_outline: bool,
+    pub wall_hide_shadow: bool,
+}
+
 #[derive(Asset, AsBindGroup, Clone, Debug, Reflect)]
+#[bind_group_data(TilemapChunkMaterialConfig)]
 pub struct TilemapChunkMaterial {
     /// Texture image of the atlas
     #[texture(0, dimension = "2d")]
@@ -50,6 +67,7 @@ pub struct TilemapChunkMaterial {
     /// The encoded ``TilePod`` to be sent to fragment shader
     #[texture(5, dimension = "2d_array", sample_type = "u_int")]
     pub tiles_data: Handle<Image>,
+    pub config: Option<TilemapChunkMaterialConfig>,
 }
 
 impl Material2d for TilemapChunkMaterial {
@@ -63,6 +81,32 @@ impl Material2d for TilemapChunkMaterial {
 
     fn alpha_mode(&self) -> AlphaMode2d {
         AlphaMode2d::Blend
+    }
+
+    fn specialize(
+        descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
+        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
+        key: bevy::sprite_render::Material2dKey<Self>,
+    ) -> bevy::ecs::error::Result<(), bevy::render::render_resource::SpecializedMeshPipelineError>
+    {
+        let config = key.bind_group_data;
+        let fragment = descriptor.fragment.as_mut().unwrap();
+
+        if config.disable_floor_blending {
+            fragment.shader_defs.push("DISABLE_FLOOR_BLENDING".into());
+        }
+
+        if config.wall_hide_outline {
+            fragment.shader_defs.push("WALL_HIDE_OUTLINE".into());
+        }
+
+        if config.wall_hide_shadow {
+            fragment.shader_defs.push("WALL_HIDE_SHADOW".into());
+        }
+
+        debug!("Shader defs: {:?}", fragment.shader_defs);
+
+        Ok(())
     }
 }
 

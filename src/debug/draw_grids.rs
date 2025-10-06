@@ -11,15 +11,15 @@ use bevy::{
 use crate::{
     ui::window::{WindowConfig, window},
     world::{
-        grid::{self, Grid, GridElevation, GridId, GridVisible, LayerIndex},
-        renderer::tilemap::Tilemap,
+        grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
+        renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
         tile::{self, TileRegistry, TileVisible},
     },
 };
 
-const WIREFRAME_HEIGHT: f32 = 0.3;
-const INFO_HEIGHT: f32 = 0.2;
-const IDS_HEIGHT: f32 = 0.2;
+const WIREFRAME_HEIGHT: f32 = 100.3;
+const INFO_HEIGHT: f32 = 100.2;
+const IDS_HEIGHT: f32 = 100.1;
 
 pub struct DrawGridsPlugin;
 
@@ -45,10 +45,17 @@ impl Plugin for DrawGridsPlugin {
                             .or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
                     ),
                 ),
+                update_rener_config.run_if(resource_changed::<DrawGridsConfig>),
             ),
         )
         .add_observer(on_add_tilemap_insert_cache)
-        .init_resource::<DrawGridsConfig>();
+        .insert_resource(DrawGridsConfig {
+            show_layers: [true; LAYERS_COUNT],
+            wall_shadow: true,
+            wall_border: true,
+            floor_blending: true,
+            ..default()
+        });
     }
 }
 
@@ -57,14 +64,39 @@ struct DrawGridsConfig {
     show_ids: bool,
     show_grid: bool,
     show_info: bool,
+    show_layers: [bool; LAYERS_COUNT],
+    floor_blending: bool,
+    wall_shadow: bool,
+    wall_border: bool,
 }
 
 #[derive(Component)]
 struct DrawGridsUi;
 
+fn list_layers() -> SpawnIter<impl Iterator<Item = impl Bundle>> {
+    SpawnIter(LAYERS.into_iter().map(|l| {
+        (
+            Name::new(format!("Layer {l:?}")),
+            checkbox((Checked,), Spawn(Text::new(format!("{l:?}")))),
+            observe(
+                move |change: On<ValueChange<bool>>,
+                      mut commands: Commands,
+                      mut config: ResMut<DrawGridsConfig>| {
+                    config.show_layers[l as usize] = change.value;
+                    if change.value {
+                        commands.entity(change.source).insert(Checked);
+                    } else {
+                        commands.entity(change.source).remove::<Checked>();
+                    }
+                },
+            ),
+        )
+    }))
+}
+
 fn spawn_debug_grids_ui(mut commands: Commands) {
     commands.spawn((
-        Name::new("Debug Grids"),
+        Name::new("Debug Options"),
         window(
             WindowConfig {
                 title: "[Debug] Draw Grids".to_string(),
@@ -73,57 +105,139 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                 ..default()
             },
             (
+                Name::new("Body Content"),
                 Node {
                     flex_direction: FlexDirection::Column,
                     ..default()
                 },
-                children![
-                    (
-                        checkbox((), Spawn(Text::new("Show IDs"))),
-                        observe(
-                            |change: On<ValueChange<bool>>,
-                             mut commands: Commands,
-                             mut config: ResMut<DrawGridsConfig>| {
-                                config.show_ids = change.value;
-                                if config.show_ids {
-                                    commands.entity(change.source).insert(Checked);
-                                } else {
-                                    commands.entity(change.source).remove::<Checked>();
-                                }
-                            }
+                children![(
+                    Name::new("Row"),
+                    Node {
+                        flex_direction: FlexDirection::Row,
+                        column_gap: px(10.0),
+                        ..default()
+                    },
+                    children![
+                        (
+                            Name::new("Left"),
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                ..default()
+                            },
+                            children![
+
+                                (
+                                    checkbox((), Spawn(Text::new("IDs"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.show_ids = change.value;
+                                            if config.show_ids {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                ),
+                                (
+                                    checkbox((), Spawn(Text::new("Grid"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.show_grid = change.value;
+                                            if config.show_grid {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                ),
+                                (
+                                    checkbox((), Spawn(Text::new("Info"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.show_info = change.value;
+                                            if config.show_info {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                ),
+                                (
+                                    checkbox((Checked, ), Spawn(Text::new("Floor Blending"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.floor_blending = change.value;
+                                            if config.floor_blending {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                ),
+                                (
+                                    checkbox((Checked,), Spawn(Text::new("Wall Shadow"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.wall_shadow = change.value;
+                                            if config.wall_shadow {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                ),
+                                (
+                                    checkbox((Checked,), Spawn(Text::new("Wall Border"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.wall_border = change.value;
+                                            if config.wall_border {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                )
+                            ]
                         ),
-                    ),
-                    (
-                        checkbox((), Spawn(Text::new("Show Grid"))),
-                        observe(
-                            |change: On<ValueChange<bool>>,
-                             mut commands: Commands,
-                             mut config: ResMut<DrawGridsConfig>| {
-                                config.show_grid = change.value;
-                                if config.show_grid {
-                                    commands.entity(change.source).insert(Checked);
-                                } else {
-                                    commands.entity(change.source).remove::<Checked>();
-                                }
-                            }
-                        ),
-                    ),
-                    (
-                        checkbox((), Spawn(Text::new("Show Info"))),
-                        observe(
-                            |change: On<ValueChange<bool>>,
-                             mut commands: Commands,
-                             mut config: ResMut<DrawGridsConfig>| {
-                                config.show_info = change.value;
-                                if config.show_info {
-                                    commands.entity(change.source).insert(Checked);
-                                } else {
-                                    commands.entity(change.source).remove::<Checked>();
-                                }
-                            }
-                        ),
-                    )
-                ],
+                        (
+                            Name::new("Right"),
+                            Node {
+                                flex_direction: FlexDirection::Column,
+                                ..default()
+                            },
+                            Children::spawn((
+                                Spawn((
+                                    Node {
+                                        align_self: AlignSelf::Center,
+                                        margin: UiRect::bottom(px(1.0)),
+                                        ..default()
+                                    },
+                                    Text::new("Layers")
+                                )),
+                                list_layers()
+                            ))
+                        )
+                    ]
+                )],
             ),
         ),
         DrawGridsUi,
@@ -400,5 +514,34 @@ fn draw_grid_tile_ids(
             .id();
 
         entities.push(entity);
+    }
+}
+
+fn update_rener_config(
+    config: Res<DrawGridsConfig>,
+    q_cache: Query<&TilemapCache, With<Tilemap>>,
+    q_layers: Query<(&mut Visibility, &LayerIndex)>,
+    mut materials: ResMut<Assets<TilemapChunkMaterial>>,
+) {
+    for cache in q_cache {
+        let Some(material) = materials.get_mut(cache.material.id()) else {
+            continue;
+        };
+
+        let mut mat_config = material.config.unwrap_or_default();
+
+        mat_config.disable_floor_blending = !config.floor_blending;
+        mat_config.wall_hide_outline = !config.wall_border;
+        mat_config.wall_hide_shadow = !config.wall_shadow;
+
+        material.config = Some(mat_config);
+    }
+
+    for (mut visibility, layer) in q_layers {
+        *visibility = if config.show_layers[*layer as usize] {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
     }
 }

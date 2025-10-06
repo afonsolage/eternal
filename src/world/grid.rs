@@ -18,13 +18,11 @@ pub enum LayerIndex {
     ROOF,
 }
 
-pub const LAYERS: [LayerIndex; 3] = [LayerIndex::FLOOR, LayerIndex::WALL, LayerIndex::ROOF];
+pub const LAYERS_COUNT: usize = 3;
+pub const LAYERS: [LayerIndex; LAYERS_COUNT] =
+    [LayerIndex::FLOOR, LayerIndex::WALL, LayerIndex::ROOF];
 
 impl LayerIndex {
-    pub const fn count() -> usize {
-        LAYERS.len()
-    }
-
     pub fn height(&self) -> f32 {
         match self {
             LayerIndex::FLOOR => 0.0,
