@@ -5,6 +5,7 @@ use crate::{
     world::{
         genesis::generate_grids,
         grid::{Grid, GridVisible},
+        physics::{PhysicsPlugin, generate_collisions},
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
     },
@@ -12,6 +13,7 @@ use crate::{
 
 pub mod genesis;
 pub mod grid;
+pub mod physics;
 pub mod renderer;
 pub mod tile;
 
@@ -19,7 +21,7 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(MapRendererPlugin)
+        app.add_plugins((MapRendererPlugin, PhysicsPlugin))
             .add_systems(Startup, setup)
             .add_systems(
                 PreUpdate,
@@ -39,8 +41,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         tile_size: Vec2::new(32.0, 32.0),
     };
 
+    let physics = generate_collisions(&grids.0);
+
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
-    commands.spawn((Name::new("Map"), tilemap, grids, Grid::<TileVisible>::new()));
+    commands.spawn((
+        Name::new("Map"),
+        tilemap,
+        grids,
+        physics,
+        Grid::<TileVisible>::new(),
+    ));
 }
 
 fn time_passed(t: f32) -> impl FnMut(Local<f32>, Res<Time>) -> bool {

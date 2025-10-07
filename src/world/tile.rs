@@ -55,6 +55,12 @@ impl TileId {
     }
 }
 
+impl TileId {
+    pub fn is_none(&self) -> bool {
+        self.0 == u16::MAX
+    }
+}
+
 impl Default for TileId {
     fn default() -> Self {
         Self(u16::MAX)

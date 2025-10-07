@@ -39,7 +39,7 @@ impl LayerIndex {
 #[derive(Default, Clone, Debug, Component)]
 pub struct Grid<T, const N: usize = 1>(Vec<Layer<T>>);
 
-fn to_index(x: u16, y: u16) -> usize {
+pub fn to_index(x: u16, y: u16) -> usize {
     y as usize * DIMS.x as usize + x as usize
 }
 
@@ -108,5 +108,11 @@ impl<T> Layer<T> {
 
     pub fn set(&mut self, x: u16, y: u16, value: T) {
         self[to_index(x, y)] = value
+    }
+
+    pub fn positions(&self) -> impl Iterator<Item = (u16, u16, &T)> {
+        self.iter()
+            .enumerate()
+            .map(|(i, t)| ((i as u32 % DIMS.x) as u16, (i as u32 / DIMS.x) as u16, t))
     }
 }
