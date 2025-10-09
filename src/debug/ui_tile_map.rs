@@ -21,7 +21,6 @@ use crate::{
         tile::{self, TileId, TileRegistry},
     },
 };
-
 pub struct UIDrawTileMap;
 
 impl Plugin for UIDrawTileMap {
@@ -75,24 +74,20 @@ fn spawn_debug_ui(mut commands: Commands) {
 }
 
 fn update_tile_map_color_ui(
-    q_tiles: Query<&GridId>,
+    grid: Single<&GridId>,
     mut q_containers: Query<&mut ImageNode, With<ImageContainer>>,
     tile_info: Res<TileRegistry>,
     mut images: ResMut<Assets<Image>>,
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
 ) {
-    let Ok(grid) = q_tiles.single() else {
-        return;
-    };
-
     let Ok(mut image_node) = q_containers.single_mut() else {
         return;
     };
 
     debug!("Updating map");
 
-    image_node.image = images.add(draw_tile_map_colors(grid, tile_info));
+    image_node.image = images.add(draw_tile_map_colors(&grid, tile_info));
 }
 
 fn draw_tile_map_colors(grid: &GridId, tile_info_map: Res<TileRegistry>) -> Image {

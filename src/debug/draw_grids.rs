@@ -342,7 +342,7 @@ struct DrawGridInfoCache {
 
 #[allow(clippy::type_complexity)]
 fn draw_grid_info(
-    q_tilemaps: Query<(
+    mut tilemap: Single<(
         &Tilemap,
         &GridVisible,
         &GridId,
@@ -352,60 +352,59 @@ fn draw_grid_info(
     config: Res<DrawGridsConfig>,
     mut commands: Commands,
 ) {
-    for (tilemap, grid_visible, grid_id, grid_elevation, mut cache) in q_tilemaps {
-        debug!("Updating grid tile infos!");
+    let (tilemap, grid_visible, grid_id, grid_elevation, ref mut cache) = *tilemap;
+    debug!("Updating grid tile infos!");
 
-        // Despawn all text entities if config says so
-        if !config.show_info {
-            cache
-                .entities
-                .iter_mut()
-                .filter_map(Option::take)
-                .for_each(|e| {
-                    commands.entity(e).despawn();
-                });
-            return;
-        }
+    // Despawn all text entities if config says so
+    if !config.show_info {
+        cache
+            .entities
+            .iter_mut()
+            .filter_map(Option::take)
+            .for_each(|e| {
+                commands.entity(e).despawn();
+            });
+        return;
+    }
 
-        // Avoid spawning a huge number of infos when the camera zooms out
-        if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
-            cache.entities.iter_mut().for_each(|t| {
-                if let Some(e) = t.take() {
-                    commands.entity(e).despawn();
+    // Avoid spawning a huge number of infos when the camera zooms out
+    if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
+        cache.entities.iter_mut().for_each(|t| {
+            if let Some(e) = t.take() {
+                commands.entity(e).despawn();
+            }
+        });
+        return;
+    }
+
+    let mut despawn = vec![];
+    commands.entity(cache.root).with_children(|parent| {
+        grid_visible
+            .iter()
+            .enumerate()
+            .for_each(|(index, tile_visible)| {
+                if !tile_visible.is_visible()
+                    && let Some(entity) = cache.entities[index]
+                {
+                    despawn.push(entity);
+                    cache.entities[index] = None;
+                } else if tile_visible.is_visible() && cache.entities[index].is_none() {
+                    let info = format_tile_info(index, grid_id, grid_elevation);
+                    let entity = parent
+                        .spawn(tile_info_bundle(tilemap.tile_size, index, info))
+                        .id();
+                    cache.entities[index] = Some(entity);
                 }
             });
-            return;
-        }
+    });
 
-        let mut despawn = vec![];
-        commands.entity(cache.root).with_children(|parent| {
-            grid_visible
-                .iter()
-                .enumerate()
-                .for_each(|(index, tile_visible)| {
-                    if !tile_visible.is_visible()
-                        && let Some(entity) = cache.entities[index]
-                    {
-                        despawn.push(entity);
-                        cache.entities[index] = None;
-                    } else if tile_visible.is_visible() && cache.entities[index].is_none() {
-                        let info = format_tile_info(index, grid_id, grid_elevation);
-                        let entity = parent
-                            .spawn(tile_info_bundle(tilemap.tile_size, index, info))
-                            .id();
-                        cache.entities[index] = Some(entity);
-                    }
-                });
-        });
-
-        despawn
-            .into_iter()
-            .for_each(|e| commands.entity(e).despawn());
-    }
+    despawn
+        .into_iter()
+        .for_each(|e| commands.entity(e).despawn());
 }
 
 fn draw_grid_wireframe(
-    q_tiles: Query<(&GridId, &Tilemap)>,
+    tilemap: Single<&Tilemap>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -422,46 +421,44 @@ fn draw_grid_wireframe(
 
     debug!("Drawing grid wireframe");
 
-    for (_grid, tilemap) in q_tiles {
-        let mut positions = vec![];
+    let mut positions = vec![];
 
-        for x in 0..grid::DIMS.x {
-            let (x, y) = (x as f32, grid::DIMS.y as f32);
-            positions.push([x, 0.0, 0.0]);
-            positions.push([x, y, 0.0]);
-        }
-        for y in 0..grid::DIMS.y {
-            let (x, y) = (grid::DIMS.x as f32, y as f32);
-            positions.push([0.0, y, 0.0]);
-            positions.push([x, y, 0.0]);
-        }
-
-        let mesh = meshes.add(
-            Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default())
-                .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions),
-        );
-
-        let material = materials.add(ColorMaterial {
-            color: Color::BLACK,
-            ..Default::default()
-        });
-
-        let entity = commands
-            .spawn((
-                Name::new("Grid Overlay - wireframe"),
-                Mesh2d(mesh),
-                MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, WIREFRAME_HEIGHT)
-                    .with_scale(tilemap.tile_size.extend(1.0)),
-            ))
-            .id();
-
-        entities.push(entity);
+    for x in 0..grid::DIMS.x {
+        let (x, y) = (x as f32, grid::DIMS.y as f32);
+        positions.push([x, 0.0, 0.0]);
+        positions.push([x, y, 0.0]);
     }
+    for y in 0..grid::DIMS.y {
+        let (x, y) = (grid::DIMS.x as f32, y as f32);
+        positions.push([0.0, y, 0.0]);
+        positions.push([x, y, 0.0]);
+    }
+
+    let mesh = meshes.add(
+        Mesh::new(PrimitiveTopology::LineList, RenderAssetUsages::default())
+            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions),
+    );
+
+    let material = materials.add(ColorMaterial {
+        color: Color::BLACK,
+        ..Default::default()
+    });
+
+    let entity = commands
+        .spawn((
+            Name::new("Grid Overlay - wireframe"),
+            Mesh2d(mesh),
+            MeshMaterial2d(material),
+            Transform::from_xyz(0.0, 0.0, WIREFRAME_HEIGHT)
+                .with_scale(tilemap.tile_size.extend(1.0)),
+        ))
+        .id();
+
+    entities.push(entity);
 }
 
 fn draw_grid_tile_ids(
-    q_tiles: Query<(&GridId, &Tilemap)>,
+    tilemap: Single<(&GridId, &Tilemap)>,
     registry: Res<TileRegistry>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -479,82 +476,79 @@ fn draw_grid_tile_ids(
 
     debug!("Drawing grid tile ids");
 
-    for (grid, tilemap) in q_tiles {
-        let layer = &grid[LayerIndex::FLOOR];
+    let (grid, tilemap) = *tilemap;
+    let layer = &grid[LayerIndex::FLOOR];
 
-        let mut positions = vec![];
-        let mut colors = vec![];
-        let mut indices = vec![];
+    let mut positions = vec![];
+    let mut colors = vec![];
+    let mut indices = vec![];
 
-        let mut i = 0;
-        for y in 0..grid::DIMS.y {
-            for x in 0..grid::DIMS.x {
-                let info = registry
-                    .get(layer.get(x as u16, y as u16))
-                    .unwrap_or(&tile::NONE_INFO);
+    let mut i = 0;
+    for y in 0..grid::DIMS.y {
+        for x in 0..grid::DIMS.x {
+            let info = registry
+                .get(layer.get(x as u16, y as u16))
+                .unwrap_or(&tile::NONE_INFO);
 
-                let (x, y) = (x as f32, y as f32);
-                positions.extend([
-                    [x, y, 0.0],
-                    [x + 1.0, y, 0.0],
-                    [x + 1.0, y + 1.0, 0.0],
-                    [x, y + 1.0, 0.0],
-                ]);
+            let (x, y) = (x as f32, y as f32);
+            positions.extend([
+                [x, y, 0.0],
+                [x + 1.0, y, 0.0],
+                [x + 1.0, y + 1.0, 0.0],
+                [x, y + 1.0, 0.0],
+            ]);
 
-                indices.extend([i, i + 1, i + 2, i, i + 2, i + 3]);
-                i += 4;
+            indices.extend([i, i + 1, i + 2, i, i + 2, i + 3]);
+            i += 4;
 
-                let color = info.map_color.with_alpha(0.25);
-                colors.extend(vec![color.to_f32_array(); 4]);
-            }
+            let color = info.map_color.with_alpha(0.25);
+            colors.extend(vec![color.to_f32_array(); 4]);
         }
-
-        let mesh = meshes.add(
-            Mesh::new(
-                PrimitiveTopology::TriangleList,
-                RenderAssetUsages::default(),
-            )
-            .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
-            .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, colors)
-            .with_inserted_indices(bevy::mesh::Indices::U32(indices)),
-        );
-
-        let material = materials.add(ColorMaterial {
-            ..Default::default()
-        });
-
-        let entity = commands
-            .spawn((
-                Name::new("Grid Overlay - TileIds"),
-                Mesh2d(mesh),
-                MeshMaterial2d(material),
-                Transform::from_xyz(0.0, 0.0, IDS_HEIGHT).with_scale(tilemap.tile_size.extend(1.0)),
-            ))
-            .id();
-
-        entities.push(entity);
     }
+
+    let mesh = meshes.add(
+        Mesh::new(
+            PrimitiveTopology::TriangleList,
+            RenderAssetUsages::default(),
+        )
+        .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
+        .with_inserted_attribute(Mesh::ATTRIBUTE_COLOR, colors)
+        .with_inserted_indices(bevy::mesh::Indices::U32(indices)),
+    );
+
+    let material = materials.add(ColorMaterial {
+        ..Default::default()
+    });
+
+    let entity = commands
+        .spawn((
+            Name::new("Grid Overlay - TileIds"),
+            Mesh2d(mesh),
+            MeshMaterial2d(material),
+            Transform::from_xyz(0.0, 0.0, IDS_HEIGHT).with_scale(tilemap.tile_size.extend(1.0)),
+        ))
+        .id();
+
+    entities.push(entity);
 }
 
 fn update_render_config(
     config: Res<DrawGridsConfig>,
-    q_cache: Query<&TilemapCache, With<Tilemap>>,
+    cache: Single<&TilemapCache, With<Tilemap>>,
     q_layers: Query<(&mut Visibility, &LayerIndex)>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
 ) {
-    for cache in q_cache {
-        let Some(material) = materials.get_mut(cache.material.id()) else {
-            continue;
-        };
+    let Some(material) = materials.get_mut(cache.material.id()) else {
+        return;
+    };
 
-        let mut mat_config = material.config.unwrap_or_default();
+    let mut mat_config = material.config.unwrap_or_default();
 
-        mat_config.disable_floor_blending = !config.floor_blending;
-        mat_config.wall_hide_outline = !config.wall_border;
-        mat_config.wall_hide_shadow = !config.wall_shadow;
+    mat_config.disable_floor_blending = !config.floor_blending;
+    mat_config.wall_hide_outline = !config.wall_border;
+    mat_config.wall_hide_shadow = !config.wall_shadow;
 
-        material.config = Some(mat_config);
-    }
+    material.config = Some(mat_config);
 
     for (mut visibility, layer) in q_layers {
         *visibility = if config.show_layers[*layer as usize] {

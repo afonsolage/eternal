@@ -14,7 +14,7 @@ use bevy::{
             IntoScheduleConfigs, SystemCondition,
             common_conditions::{resource_changed, resource_exists},
         },
-        system::{Commands, Query, Res, ResMut},
+        system::{Commands, Query, Res, ResMut, Single},
         world::{DeferredWorld, Mut},
     },
     image::Image,
@@ -140,6 +140,14 @@ fn spawn_single_chunk(
 }
 
 fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContext) {
+    // TODO: Use singletons in the future
+    let mut state = world
+        .try_query::<&Tilemap>()
+        .expect("Tilemap is registered");
+    if world.query(&mut state).count() != 1 {
+        warn!("There should be only one Tilemap entity!");
+    }
+
     // Since tilemap will group chunks together, we need to make it act like if it had Mesh2d too.
     if let Some(mut visibility_class) = world.get_mut::<VisibilityClass>(entity) {
         visibility_class.push(std::any::TypeId::of::<Mesh2d>());
@@ -237,43 +245,43 @@ fn create_tilemap_chunk_mesh() -> Mesh {
 pub struct TilemapIndex(pub u16);
 
 fn update_tilemap_chunk_material(
-    q_tilemaps: Query<(&GridId, &TilemapCache)>,
+    tilemap: Single<(&GridId, &TilemapCache)>,
     tile_info_map: Res<TileRegistry>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    for (grid, TilemapCache { material, .. }) in q_tilemaps {
-        // Using `get_mut` to trigger change detection and update this material on render world
-        let Some(material) = materials.get_mut(material.id()) else {
-            warn!("Failed to update tilemap material. Material not found.");
-            continue;
-        };
+    let (grid, TilemapCache { material, .. }) = *tilemap;
 
-        let Some(tile_data_image) = images.get_mut(material.tiles_data.id()) else {
-            warn!("Failed to update tilemap material. Tile data not found.");
-            continue;
-        };
+    // Using `get_mut` to trigger change detection and update this material on render world
+    let Some(material) = materials.get_mut(material.id()) else {
+        warn!("Failed to update tilemap material. Material not found.");
+        return;
+    };
 
-        debug!("Updating material of tilemap.");
+    let Some(tile_data_image) = images.get_mut(material.tiles_data.id()) else {
+        warn!("Failed to update tilemap material. Tile data not found.");
+        return;
+    };
 
-        for layer in LAYERS {
-            let tile_data_pods = get_data_pod_layer(layer, tile_data_image);
-            let grid_layer = &grid[layer];
+    debug!("Updating material of tilemap.");
 
-            tile_data_pods
-                .iter_mut()
-                .enumerate()
-                .for_each(|(idx, pod)| {
-                    let id = grid_layer[idx];
-                    let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
+    for layer in LAYERS {
+        let tile_data_pods = get_data_pod_layer(layer, tile_data_image);
+        let grid_layer = &grid[layer];
 
-                    pod.index = info.atlas_index;
-                    pod.weight = match info.blend_tech {
-                        tile::BlendTech::None => u16::MAX,
-                        tile::BlendTech::Weight(w) => w,
-                    };
-                });
-        }
+        tile_data_pods
+            .iter_mut()
+            .enumerate()
+            .for_each(|(idx, pod)| {
+                let id = grid_layer[idx];
+                let info = tile_info_map.get(&id).unwrap_or(&tile::NONE_INFO);
+
+                pod.index = info.atlas_index;
+                pod.weight = match info.blend_tech {
+                    tile::BlendTech::None => u16::MAX,
+                    tile::BlendTech::Weight(w) => w,
+                };
+            });
     }
 }
 

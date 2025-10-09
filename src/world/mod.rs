@@ -115,7 +115,7 @@ fn process_tile_info_list(
 
 #[allow(clippy::type_complexity)]
 fn update_tile_visibility(
-    q_tiles: Query<(&Tilemap, &mut GridVisible)>,
+    mut tilemap: Single<(&Tilemap, &mut GridVisible)>,
     q_camera: Query<
         (&Camera, &GlobalTransform),
         Or<(Changed<GlobalTransform>, Changed<Projection>)>,
@@ -144,20 +144,19 @@ fn update_tile_visibility(
 
     *last_rect = rect;
 
-    for (tilemap, mut grid) in q_tiles {
-        let min_tile = (rect.min / tilemap.tile_size)
-            .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
-            .as_u16vec2();
-        let max_tile = (rect.max / tilemap.tile_size)
-            .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
-            .as_u16vec2();
+    let (tilemap, ref mut grid) = *tilemap;
+    let min_tile = (rect.min / tilemap.tile_size)
+        .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
+        .as_u16vec2();
+    let max_tile = (rect.max / tilemap.tile_size)
+        .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
+        .as_u16vec2();
 
-        grid.fill(TileVisible::default());
+    grid.fill(TileVisible::default());
 
-        for y in min_tile.y..=max_tile.y {
-            for x in min_tile.x..=max_tile.x {
-                grid.set(x, y, TileVisible::visible());
-            }
+    for y in min_tile.y..=max_tile.y {
+        for x in min_tile.x..=max_tile.x {
+            grid.set(x, y, TileVisible::visible());
         }
     }
 }
