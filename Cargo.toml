@@ -38,3 +38,7 @@ dev_native = [
     "experimental",
     "bevy/file_watcher",
 ]
+
+
+[profile.dev.package."*"]
+opt-level = 3
