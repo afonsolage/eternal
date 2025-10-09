@@ -1,3 +1,4 @@
+use avian2d::prelude::PhysicsGizmos;
 use bevy::{
     asset::RenderAssetUsages,
     feathers::controls::checkbox,
@@ -45,7 +46,8 @@ impl Plugin for DrawGridsPlugin {
                             .or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
                     ),
                 ),
-                update_rener_config.run_if(resource_changed::<DrawGridsConfig>),
+                update_render_config.run_if(resource_changed::<DrawGridsConfig>),
+                update_physics_config.run_if(resource_changed::<DrawGridsConfig>),
             ),
         )
         .add_observer(on_add_tilemap_insert_cache)
@@ -68,6 +70,7 @@ struct DrawGridsConfig {
     floor_blending: bool,
     wall_shadow: bool,
     wall_border: bool,
+    show_colliders: bool,
 }
 
 #[derive(Component)]
@@ -233,7 +236,23 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     },
                                     Text::new("Layers")
                                 )),
-                                list_layers()
+                                list_layers(),
+                                Spawn(Text::new("")),
+                                Spawn((
+                                    checkbox((), Spawn(Text::new("Show Colliders"))),
+                                    observe(
+                                        |change: On<ValueChange<bool>>,
+                                         mut commands: Commands,
+                                         mut config: ResMut<DrawGridsConfig>| {
+                                            config.show_colliders = change.value;
+                                            if config.show_colliders {
+                                                commands.entity(change.source).insert(Checked);
+                                            } else {
+                                                commands.entity(change.source).remove::<Checked>();
+                                            }
+                                        }
+                                    ),
+                                )),
                             ))
                         )
                     ]
@@ -517,7 +536,7 @@ fn draw_grid_tile_ids(
     }
 }
 
-fn update_rener_config(
+fn update_render_config(
     config: Res<DrawGridsConfig>,
     q_cache: Query<&TilemapCache, With<Tilemap>>,
     q_layers: Query<(&mut Visibility, &LayerIndex)>,
@@ -544,4 +563,8 @@ fn update_rener_config(
             Visibility::Hidden
         };
     }
+}
+
+fn update_physics_config(config: Res<DrawGridsConfig>, mut store: ResMut<GizmoConfigStore>) {
+    store.config_mut::<PhysicsGizmos>().0.enabled = config.show_colliders;
 }

@@ -10,8 +10,15 @@ impl Plugin for PhysicsPlugin {
         // 32 pixels per unit
         app.add_plugins((
             PhysicsPlugins::default().with_length_unit(32.0),
-            //PhysicsDebugPlugin,
-        ));
+            PhysicsDebugPlugin,
+        ))
+        .insert_gizmo_config(
+            PhysicsGizmos::default(),
+            GizmoConfig {
+                enabled: false,
+                ..default()
+            },
+        );
     }
 }
 
