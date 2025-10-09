@@ -9,6 +9,7 @@ use bevy::{
         hierarchy::ChildOf,
         lifecycle::HookContext,
         name::Name,
+        observer::On,
         query::{Changed, With},
         schedule::{
             IntoScheduleConfigs, SystemCondition,
@@ -18,9 +19,10 @@ use bevy::{
         world::{DeferredWorld, Mut},
     },
     image::Image,
-    log::{debug, error, warn},
+    log::{debug, error, info, warn},
     math::{IVec2, U8Vec2, U16Vec2, UVec2, Vec2, primitives::Rectangle},
     mesh::{Mesh, Mesh2d, MeshTag, PrimitiveTopology},
+    picking::events::{Pointer, Release},
     platform::collections::HashMap,
     prelude::{Deref, DerefMut},
     reflect::Reflect,
@@ -197,6 +199,9 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
                 Visibility::Inherited,
                 layer,
             ))
+            .observe(|pick: On<Pointer<Release>>| {
+                info!("Clicked!");
+            })
             .id();
 
         for y in 0..chunks_count.y {
