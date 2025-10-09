@@ -1,3 +1,4 @@
+use avian2d::prelude::{Collider, LockedAxes, RigidBody};
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
@@ -46,7 +47,6 @@ fn main() {
         .add_systems(Startup, setup)
         .run();
 }
-
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
 
@@ -58,5 +58,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..Default::default()
         },
         Transform::from_xyz(0.0, 0.0, 0.1),
+        RigidBody::Dynamic,
+        Collider::capsule(10.0, 15.0),
+        LockedAxes::ROTATION_LOCKED,
     ));
 }

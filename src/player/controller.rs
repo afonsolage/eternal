@@ -1,3 +1,4 @@
+use avian2d::prelude::LinearVelocity;
 use bevy::{
     app::Plugin,
     ecs::{component::Component, system::Query},
@@ -36,28 +37,31 @@ impl Default for PlayerController {
 }
 
 fn move_player(
-    mut query: Query<(&PlayerController, &mut Transform)>,
+    mut query: Single<(&PlayerController, &mut LinearVelocity)>,
     input: Res<ButtonInput<KeyCode>>,
-    time: Res<Time>,
 ) {
-    for (controller, mut transform) in query.iter_mut() {
-        let mut direction = transform.translation;
+    let mut direction = Vec2::ZERO;
+    let (controller, ref mut velocity) = *query;
 
-        if input.pressed(KeyCode::KeyW) {
-            direction.y += controller.move_speed * time.delta_secs();
-        }
-        if input.pressed(KeyCode::KeyS) {
-            direction.y -= controller.move_speed * time.delta_secs();
-        }
-        if input.pressed(KeyCode::KeyA) {
-            direction.x -= controller.move_speed * time.delta_secs();
-        }
-        if input.pressed(KeyCode::KeyD) {
-            direction.x += controller.move_speed * time.delta_secs();
-        }
-
-        transform.translation = direction;
+    if input.pressed(KeyCode::KeyW) {
+        direction.y += 1.0;
     }
+    if input.pressed(KeyCode::KeyS) {
+        direction.y -= 1.0;
+    }
+    if input.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
+    }
+    if input.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
+    }
+
+    if direction != Vec2::ZERO {
+        direction = direction.normalize();
+    }
+
+    velocity.x = direction.x * controller.move_speed;
+    velocity.y = direction.y * controller.move_speed;
 }
 
 fn zoom_player(

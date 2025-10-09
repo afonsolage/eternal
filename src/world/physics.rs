@@ -8,17 +8,15 @@ pub struct PhysicsPlugin;
 impl Plugin for PhysicsPlugin {
     fn build(&self, app: &mut App) {
         // 32 pixels per unit
-        app.add_plugins((
-            PhysicsPlugins::default().with_length_unit(32.0),
-            PhysicsDebugPlugin,
-        ))
-        .insert_gizmo_config(
-            PhysicsGizmos::default(),
-            GizmoConfig {
-                enabled: false,
-                ..default()
-            },
-        );
+        app.add_plugins((PhysicsPlugins::default(), PhysicsDebugPlugin))
+            .insert_resource(Gravity::ZERO)
+            .insert_gizmo_config(
+                PhysicsGizmos::default(),
+                GizmoConfig {
+                    enabled: false,
+                    ..default()
+                },
+            );
     }
 }
 
