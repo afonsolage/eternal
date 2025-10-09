@@ -4,7 +4,7 @@ use crate::{
     config::tile::{TileConfig, TileConfigList},
     world::{
         genesis::generate_grids,
-        grid::{Grid, GridVisible},
+        grid::{Grid, GridId, GridVisible, LayerIndex},
         physics::{PhysicsPlugin, generate_collisions},
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
@@ -44,13 +44,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let physics = generate_collisions(&grids.0);
 
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
-    commands.spawn((
-        Name::new("Map"),
-        tilemap,
-        grids,
-        physics,
-        Grid::<TileVisible>::new(),
-    ));
+    commands
+        .spawn((
+            Name::new("Map"),
+            tilemap,
+            grids,
+            physics,
+            Grid::<TileVisible>::new(),
+        ))
+        .observe(
+            |release: On<Pointer<Release>>, mut tilemap: Single<(&Tilemap, &mut GridId)>| {
+                let Some(pos) = release.hit.position else {
+                    return;
+                };
+
+                let (tilemap, ref mut grid) = *tilemap;
+
+                let tile_pos = (pos.xy() / tilemap.tile_size).as_u16vec2();
+
+                if tile_pos.x as u32 > grid::DIMS.x || tile_pos.y as u32 > grid::DIMS.y {
+                    return;
+                }
+
+                let current = *grid[LayerIndex::WALL].get(tile_pos.x, tile_pos.y);
+                grid[LayerIndex::WALL].set(tile_pos.x, tile_pos.y, TileId::default());
+
+                debug!("Changing {current:?} to none at {tile_pos}");
+            },
+        );
 }
 
 fn time_passed(t: f32) -> impl FnMut(Local<f32>, Res<Time>) -> bool {

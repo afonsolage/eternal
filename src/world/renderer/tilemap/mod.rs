@@ -44,7 +44,7 @@ use crate::{
     },
 };
 
-const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);
+pub const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);
 
 pub struct TilemapPlugin;
 
@@ -56,7 +56,7 @@ impl Plugin for TilemapPlugin {
                 update_tilemap_chunk_material.run_if(
                     resource_exists::<TileRegistry>.and(
                         resource_changed::<TileRegistry>
-                            .or(|q: Query<(), Changed<Grid<TileId>>>| !q.is_empty()),
+                            .or(|q: Query<(), Changed<GridId>>| !q.is_empty()),
                     ),
                 ),
             );
@@ -199,9 +199,6 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
                 Visibility::Inherited,
                 layer,
             ))
-            .observe(|pick: On<Pointer<Release>>| {
-                info!("Clicked!");
-            })
             .id();
 
         for y in 0..chunks_count.y {
