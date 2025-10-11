@@ -16,6 +16,9 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component)]
+pub struct PlayerCamera;
+
+#[derive(Component)]
 #[require(Transform)]
 pub struct Player;
 
