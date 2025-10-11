@@ -71,8 +71,6 @@ pub struct Tilemap {
     pub atlas_texture: Handle<Image>,
     /// How many tile textures there are in the atlas.
     pub atlas_dims: UVec2,
-    /// The size of each rendered individual tile.
-    pub tile_size: Vec2,
 }
 
 impl Default for Tilemap {
@@ -80,7 +78,6 @@ impl Default for Tilemap {
         Self {
             atlas_texture: Default::default(),
             atlas_dims: UVec2::new(4, 4),
-            tile_size: Vec2::new(1.0, 1.0),
         }
     }
 }
@@ -120,10 +117,10 @@ struct TilemapParams {
 fn spawn_single_chunk(
     commands: &mut Commands,
     chunk_pos: TilemapChunkPos,
-    tile_size: Vec2,
     parent: Entity,
     TilemapCache { material, mesh }: TilemapCache,
 ) -> Entity {
+    let tile_size = tile::SIZE.as_vec2();
     let chunk_size = tile_size * TILES_PER_CHUNK.as_vec2();
     let chunk_world_pos = chunk_pos.xy.as_vec2() * chunk_size;
     let chunk_world_pos = chunk_world_pos.extend(chunk_pos.layer.height());
@@ -162,7 +159,6 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
 
     let atlas_texture = tile_map.atlas_texture.clone();
     let atlas_dims = tile_map.atlas_dims;
-    let tile_size = tile_map.tile_size;
 
     let mut images = world.resource_mut::<Assets<Image>>();
     let tiles_data = images.add(material::init_tile_data(LAYERS_COUNT));
@@ -172,7 +168,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
         atlas_texture,
         atlas_dims,
         tiles_per_chunk: TILES_PER_CHUNK.as_uvec2(),
-        tile_size,
+        tile_size: tile::SIZE.as_vec2(),
         tiles_data,
         config: Some(TilemapChunkMaterialConfig {
             disable_floor_blending: true,
@@ -207,13 +203,8 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
                     xy: U16Vec2::new(x, y),
                     layer,
                 };
-                let chunk_entity = spawn_single_chunk(
-                    &mut commands,
-                    chunk_pos,
-                    tile_size,
-                    layer_entity,
-                    cache.clone(),
-                );
+                let chunk_entity =
+                    spawn_single_chunk(&mut commands, chunk_pos, layer_entity, cache.clone());
 
                 chunk_map.insert(chunk_pos, chunk_entity);
             }

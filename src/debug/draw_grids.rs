@@ -271,7 +271,8 @@ fn format_tile_info(index: usize, ids: &GridId, elevations: &GridElevation) -> S
     )
 }
 
-fn tile_info_bundle(tile_size: Vec2, index: usize, info: String) -> impl Bundle {
+fn tile_info_bundle(index: usize, info: String) -> impl Bundle {
+    let tile_size = tile::SIZE.as_vec2();
     let tile_pos = U16Vec2::new(
         index as u16 % grid::DIMS.x as u16,
         index as u16 / grid::DIMS.x as u16,
@@ -343,7 +344,6 @@ struct DrawGridInfoCache {
 #[allow(clippy::type_complexity)]
 fn draw_grid_info(
     mut tilemap: Single<(
-        &Tilemap,
         &GridVisible,
         &GridId,
         &GridElevation,
@@ -352,7 +352,7 @@ fn draw_grid_info(
     config: Res<DrawGridsConfig>,
     mut commands: Commands,
 ) {
-    let (tilemap, grid_visible, grid_id, grid_elevation, ref mut cache) = *tilemap;
+    let (grid_visible, grid_id, grid_elevation, ref mut cache) = *tilemap;
     debug!("Updating grid tile infos!");
 
     // Despawn all text entities if config says so
@@ -390,9 +390,7 @@ fn draw_grid_info(
                     cache.entities[index] = None;
                 } else if tile_visible.is_visible() && cache.entities[index].is_none() {
                     let info = format_tile_info(index, grid_id, grid_elevation);
-                    let entity = parent
-                        .spawn(tile_info_bundle(tilemap.tile_size, index, info))
-                        .id();
+                    let entity = parent.spawn(tile_info_bundle(index, info)).id();
                     cache.entities[index] = Some(entity);
                 }
             });
@@ -404,7 +402,6 @@ fn draw_grid_info(
 }
 
 fn draw_grid_wireframe(
-    tilemap: Single<&Tilemap>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -450,7 +447,7 @@ fn draw_grid_wireframe(
             Mesh2d(mesh),
             MeshMaterial2d(material),
             Transform::from_xyz(0.0, 0.0, WIREFRAME_HEIGHT)
-                .with_scale(tilemap.tile_size.extend(1.0)),
+                .with_scale(tile::SIZE.as_vec2().extend(1.0)),
         ))
         .id();
 
@@ -458,7 +455,7 @@ fn draw_grid_wireframe(
 }
 
 fn draw_grid_tile_ids(
-    tilemap: Single<(&GridId, &Tilemap)>,
+    grid: Single<&GridId>,
     registry: Res<TileRegistry>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -476,7 +473,6 @@ fn draw_grid_tile_ids(
 
     debug!("Drawing grid tile ids");
 
-    let (grid, tilemap) = *tilemap;
     let layer = &grid[LayerIndex::FLOOR];
 
     let mut positions = vec![];
@@ -525,7 +521,7 @@ fn draw_grid_tile_ids(
             Name::new("Grid Overlay - TileIds"),
             Mesh2d(mesh),
             MeshMaterial2d(material),
-            Transform::from_xyz(0.0, 0.0, IDS_HEIGHT).with_scale(tilemap.tile_size.extend(1.0)),
+            Transform::from_xyz(0.0, 0.0, IDS_HEIGHT).with_scale(tile::SIZE.as_vec2().extend(1.0)),
         ))
         .id();
 

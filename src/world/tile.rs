@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData};
 
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{math::U16Vec2, platform::collections::HashMap, prelude::*};
 use serde::Deserialize;
 
 pub const NONE_INFO: TileInfo = TileInfo {
@@ -11,6 +11,9 @@ pub const NONE_INFO: TileInfo = TileInfo {
     map_color: Srgba::NONE,
     blend_tech: BlendTech::None,
 };
+
+/// The size of each rendered individual tile.
+pub const SIZE: U16Vec2 = U16Vec2::new(32, 32);
 
 #[derive(Debug, Default, Clone, Copy, Reflect, Deserialize)]
 pub enum TileKind {

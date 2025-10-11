@@ -20,12 +20,13 @@ impl Plugin for PhysicsPlugin {
                 enabled: false,
                 ..default()
             },
-        );
+        )
+        .add_observer(add_collisions);
     }
 }
 
-pub fn generate_collisions(ids: &GridId) -> impl Bundle {
-    let walls = ids[LayerIndex::WALL]
+pub fn add_collisions(add: On<Add, GridId>, grid: Single<&GridId>, mut commands: Commands) {
+    let walls = grid[LayerIndex::WALL]
         .positions()
         .filter_map(|(x, y, &id)| {
             if id.is_none() {
@@ -37,6 +38,7 @@ pub fn generate_collisions(ids: &GridId) -> impl Bundle {
         .collect::<Vec<_>>();
 
     let wall_collider = Collider::voxels(Vec2::new(32.0, 32.0), &walls);
-
-    (wall_collider, RigidBody::Static)
+    commands
+        .entity(add.entity)
+        .insert((wall_collider, RigidBody::Static));
 }

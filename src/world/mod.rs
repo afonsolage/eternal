@@ -5,7 +5,7 @@ use crate::{
     world::{
         genesis::generate_grids,
         grid::{Grid, GridId, GridVisible, LayerIndex},
-        physics::{PhysicsPlugin, generate_collisions},
+        physics::PhysicsPlugin,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
     },
@@ -29,7 +29,10 @@ impl Plugin for WorldPlugin {
                     process_tile_info_list,
                     update_tile_visibility.run_if(time_passed(0.5)),
                 ),
-            );
+            )
+            .add_observer(|add: On<Add, Tilemap>| {
+                debug!("Tilemap added on entity: {:?}", add.entity);
+            });
     }
 }
 
@@ -38,29 +41,18 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let tilemap = Tilemap {
         atlas_texture: asset_server.load("sheets/terrain.png"),
         atlas_dims: UVec2::new(4, 4),
-        tile_size: Vec2::new(32.0, 32.0),
     };
-
-    let physics = generate_collisions(&grids.0);
 
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
     commands
-        .spawn((
-            Name::new("Map"),
-            tilemap,
-            grids,
-            physics,
-            Grid::<TileVisible>::new(),
-        ))
+        .spawn((Name::new("Map"), tilemap, grids, Grid::<TileVisible>::new()))
         .observe(
-            |release: On<Pointer<Release>>, mut tilemap: Single<(&Tilemap, &mut GridId)>| {
+            |release: On<Pointer<Release>>, mut grid: Single<&mut GridId>| {
                 let Some(pos) = release.hit.position else {
                     return;
                 };
 
-                let (tilemap, ref mut grid) = *tilemap;
-
-                let tile_pos = (pos.xy() / tilemap.tile_size).as_u16vec2();
+                let tile_pos = pos.xy().as_u16vec2() / tile::SIZE;
 
                 if tile_pos.x as u32 > grid::DIMS.x || tile_pos.y as u32 > grid::DIMS.y {
                     return;
@@ -136,7 +128,7 @@ fn process_tile_info_list(
 
 #[allow(clippy::type_complexity)]
 fn update_tile_visibility(
-    mut tilemap: Single<(&Tilemap, &mut GridVisible)>,
+    mut grid: Single<&mut GridVisible>,
     q_camera: Query<
         (&Camera, &GlobalTransform),
         Or<(Changed<GlobalTransform>, Changed<Projection>)>,
@@ -165,11 +157,10 @@ fn update_tile_visibility(
 
     *last_rect = rect;
 
-    let (tilemap, ref mut grid) = *tilemap;
-    let min_tile = (rect.min / tilemap.tile_size)
+    let min_tile = (rect.min / tile::SIZE.as_vec2())
         .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
         .as_u16vec2();
-    let max_tile = (rect.max / tilemap.tile_size)
+    let max_tile = (rect.max / tile::SIZE.as_vec2())
         .clamp(Vec2::ZERO, grid::DIMS.as_vec2() - Vec2::ONE)
         .as_u16vec2();
 

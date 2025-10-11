@@ -59,7 +59,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         },
         Transform::from_xyz(0.0, 0.0, 0.1),
         RigidBody::Dynamic,
-        Collider::capsule(10.0, 15.0),
+        Collider::capsule(8.0, 10.0),
         LockedAxes::ROTATION_LOCKED,
     ));
 }
