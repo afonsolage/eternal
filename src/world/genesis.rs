@@ -1,3 +1,5 @@
+use bevy::prelude::*;
+
 use crate::{
     noise::Noise,
     world::{
@@ -6,14 +8,23 @@ use crate::{
     },
 };
 
-pub fn generate_grids() -> (GridId, GridElevation) {
+pub struct GenesisPlugin;
+
+impl Plugin for GenesisPlugin {
+    fn build(&self, app: &mut bevy::app::App) {
+        app.add_observer(add_grids);
+    }
+}
+
+pub fn add_grids(add: On<Add, GridId>, mut ids: Single<&mut GridId>, mut commands: Commands) {
     let elevations = generate_elevation();
-    let mut ids = Grid::new();
 
     collapse_floor_layer(&mut ids[LayerIndex::FLOOR], &elevations);
     collapse_wall_layer(&mut ids[LayerIndex::WALL], &elevations);
 
-    (ids, elevations)
+    debug!("Generated ids!");
+
+    commands.entity(add.entity).insert(elevations);
 }
 
 pub fn generate_elevation() -> GridElevation {

@@ -9,6 +9,9 @@ pub type GridId = Grid<TileId, { LAYERS.len() }>;
 pub type GridVisible = Grid<TileVisible>;
 pub type GridElevation = Grid<TileElevation>;
 
+#[derive(Default, Event)]
+pub struct GridIdChanged;
+
 #[derive(Debug, Default, Clone, Copy, Component, Reflect, Hash, PartialEq, Eq)]
 #[repr(u32)]
 pub enum LayerIndex {

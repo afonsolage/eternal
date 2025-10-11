@@ -14,7 +14,7 @@ use crate::{
     world::{
         grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
         renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
-        tile::{self, TileRegistry, TileVisible},
+        tile::{self, TileRegistry},
     },
 };
 
@@ -30,25 +30,13 @@ impl Plugin for DrawGridsPlugin {
         app.add_systems(
             Update,
             (
-                draw_grid_info.run_if(
-                    resource_changed::<DrawGridsConfig>
-                        .or(|q: Query<(), Changed<Grid<TileVisible>>>| !q.is_empty()),
-                ),
-                draw_grid_wireframe.run_if(
-                    resource_exists::<TileRegistry>.and(
-                        resource_changed::<TileRegistry>.or(resource_changed::<DrawGridsConfig>),
-                    ),
-                ),
-                draw_grid_tile_ids.run_if(
-                    resource_exists::<TileRegistry>.and(
-                        resource_changed::<TileRegistry>
-                            .or(resource_changed::<DrawGridsConfig>)
-                            .or(|q: Query<(), Changed<Tilemap>>| !q.is_empty()),
-                    ),
-                ),
-                update_render_config.run_if(resource_changed::<DrawGridsConfig>),
-                update_physics_config.run_if(resource_changed::<DrawGridsConfig>),
-            ),
+                draw_grid_info,
+                draw_grid_tile_ids,
+                draw_grid_wireframe,
+                update_render_config,
+                update_physics_config,
+            )
+                .run_if(resource_changed::<DrawGridsConfig>),
         )
         .add_observer(on_add_tilemap_insert_cache)
         .insert_resource(DrawGridsConfig {
@@ -368,7 +356,7 @@ fn draw_grid_info(
     }
 
     // Avoid spawning a huge number of infos when the camera zooms out
-    if grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
+    if grid_visible.is_empty() || grid_visible.iter().filter(|t| t.is_visible()).count() > 512 {
         cache.entities.iter_mut().for_each(|t| {
             if let Some(e) = t.take() {
                 commands.entity(e).despawn();
@@ -408,6 +396,8 @@ fn draw_grid_wireframe(
     mut entities: Local<Vec<Entity>>,
     config: Res<DrawGridsConfig>,
 ) {
+    debug!("Drawing grid wireframe");
+
     entities
         .drain(..)
         .for_each(|e| commands.entity(e).despawn());
@@ -415,8 +405,6 @@ fn draw_grid_wireframe(
     if !config.show_grid {
         return;
     }
-
-    debug!("Drawing grid wireframe");
 
     let mut positions = vec![];
 

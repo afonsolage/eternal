@@ -45,7 +45,7 @@
       name: "STONE_WALL",
       atlas: "sheets/terrain.png",
       atlas_index: 11,
-      map_color: "#ffcc66",
+      map_color: "#11cc66",
     ),
   ]
 )

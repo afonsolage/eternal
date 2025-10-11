@@ -3,8 +3,8 @@ use bevy::{platform::collections::HashMap, prelude::*};
 use crate::{
     config::tile::{TileConfig, TileConfigList},
     world::{
-        genesis::generate_grids,
-        grid::{Grid, GridId, GridVisible, LayerIndex},
+        genesis::GenesisPlugin,
+        grid::{GridId, GridIdChanged, GridVisible, LayerIndex},
         physics::PhysicsPlugin,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
@@ -21,23 +21,21 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((MapRendererPlugin, PhysicsPlugin))
+        app.add_plugins((MapRendererPlugin, PhysicsPlugin, GenesisPlugin))
+            .init_resource::<TileRegistry>()
             .add_systems(Startup, setup)
             .add_systems(
                 PreUpdate,
                 (
-                    process_tile_info_list,
+                    process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
                     update_tile_visibility.run_if(time_passed(0.5)),
+                    trigger_grid_changed,
                 ),
-            )
-            .add_observer(|add: On<Add, Tilemap>| {
-                debug!("Tilemap added on entity: {:?}", add.entity);
-            });
+            );
     }
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    let grids = generate_grids();
     let tilemap = Tilemap {
         atlas_texture: asset_server.load("sheets/terrain.png"),
         atlas_dims: UVec2::new(4, 4),
@@ -45,7 +43,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
     commands
-        .spawn((Name::new("Map"), tilemap, grids, Grid::<TileVisible>::new()))
+        .spawn((Name::new("Map"), tilemap, GridId::new(), GridVisible::new()))
         .observe(
             |release: On<Pointer<Release>>, mut grid: Single<&mut GridId>| {
                 let Some(pos) = release.hit.position else {
@@ -170,5 +168,11 @@ fn update_tile_visibility(
         for x in min_tile.x..=max_tile.x {
             grid.set(x, y, TileVisible::visible());
         }
+    }
+}
+
+fn trigger_grid_changed(changed: Query<(), Changed<GridId>>, mut commands: Commands) {
+    if !changed.is_empty() {
+        commands.trigger(GridIdChanged)
     }
 }

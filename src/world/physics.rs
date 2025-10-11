@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::world::grid::{GridId, LayerIndex};
+use crate::world::grid::{GridId, GridIdChanged, LayerIndex};
 
 pub struct PhysicsPlugin;
 
@@ -21,11 +21,22 @@ impl Plugin for PhysicsPlugin {
                 ..default()
             },
         )
-        .add_observer(add_collisions);
+        .add_observer(on_add_grid)
+        .add_observer(on_grid_id_changed);
     }
 }
 
-pub fn add_collisions(add: On<Add, GridId>, grid: Single<&GridId>, mut commands: Commands) {
+pub fn on_add_grid(add: On<Add, GridId>, mut commands: Commands) {
+    commands.entity(add.entity).insert(RigidBody::Static);
+}
+
+pub fn on_grid_id_changed(
+    _: On<GridIdChanged>,
+    singleton: Single<(Entity, &GridId)>,
+    mut commands: Commands,
+) {
+    let (entity, grid) = *singleton;
+
     let walls = grid[LayerIndex::WALL]
         .positions()
         .filter_map(|(x, y, &id)| {
@@ -37,8 +48,10 @@ pub fn add_collisions(add: On<Add, GridId>, grid: Single<&GridId>, mut commands:
         })
         .collect::<Vec<_>>();
 
-    let wall_collider = Collider::voxels(Vec2::new(32.0, 32.0), &walls);
-    commands
-        .entity(add.entity)
-        .insert((wall_collider, RigidBody::Static));
+    if walls.is_empty() {
+        commands.entity(entity).remove::<Collider>();
+    } else {
+        let wall_collider = Collider::voxels(Vec2::new(32.0, 32.0), &walls);
+        commands.entity(entity).insert(wall_collider);
+    }
 }

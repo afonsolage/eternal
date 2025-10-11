@@ -28,10 +28,7 @@ impl Plugin for UIDrawTileMap {
         app.add_systems(Startup, spawn_debug_ui).add_systems(
             Update,
             update_tile_map_color_ui.run_if(
-                resource_exists::<TileRegistry>.and(
-                    resource_changed::<TileRegistry>
-                        .or(|q: Query<&Grid<TileId>, Changed<Grid<TileId>>>| !q.is_empty()),
-                ),
+                resource_changed::<TileRegistry>.or(|q: Query<(), Changed<GridId>>| !q.is_empty()),
             ),
         );
     }
@@ -81,6 +78,10 @@ fn update_tile_map_color_ui(
     ui_entity: Local<Option<Entity>>,
     mut commands: Commands,
 ) {
+    if tile_info.is_empty() {
+        return;
+    }
+
     let Ok(mut image_node) = q_containers.single_mut() else {
         return;
     };
