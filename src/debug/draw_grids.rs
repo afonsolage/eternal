@@ -12,7 +12,10 @@ use bevy::{
 use crate::{
     ui::window::{WindowConfig, window},
     world::{
-        grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
+        grid::{
+            self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex,
+            grid_id_changed,
+        },
         renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
         tile::{self, TileRegistry},
     },
@@ -30,13 +33,19 @@ impl Plugin for DrawGridsPlugin {
         app.add_systems(
             Update,
             (
+                (
+                    draw_grid_wireframe,
+                    update_physics_config,
+                    update_render_config,
+                )
+                    .run_if(resource_changed::<DrawGridsConfig>),
+                draw_grid_tile_ids.run_if(
+                    resource_changed::<DrawGridsConfig>
+                        .or(resource_changed::<TileRegistry>)
+                        .or(grid_id_changed),
+                ),
                 draw_grid_info,
-                draw_grid_tile_ids,
-                draw_grid_wireframe,
-                update_render_config,
-                update_physics_config,
-            )
-                .run_if(resource_changed::<DrawGridsConfig>),
+            ),
         )
         .add_observer(on_add_tilemap_insert_cache)
         .insert_resource(DrawGridsConfig {
@@ -252,10 +261,18 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
 }
 
 fn format_tile_info(index: usize, ids: &GridId, elevations: &GridElevation) -> String {
-    let layer = LayerIndex::FLOOR;
+    let id_or_space = |layer| match *ids[layer][index] {
+        id @ 0..u16::MAX => id as i32,
+        u16::MAX => -1,
+    };
+
+    let floor = id_or_space(LayerIndex::FLOOR);
+    let wall = id_or_space(LayerIndex::WALL);
+    let roof = id_or_space(LayerIndex::ROOF);
+
     format!(
-        "{layer:?}: {}\nele: {:.02}",
-        *ids[layer][index], *elevations[index]
+        "{floor:03},{wall:03},{roof:03}\nele: {:.02}",
+        *elevations[index]
     )
 }
 
@@ -288,7 +305,7 @@ fn tile_info_bundle(index: usize, info: String) -> impl Bundle {
                 Transform::from_xyz(0.0, 0.0, 0.0),
                 Text2d::new(info),
                 TextFont {
-                    font_size: 10.0,
+                    font_size: 8.0,
                     ..Default::default()
                 }
             )
@@ -341,7 +358,6 @@ fn draw_grid_info(
     mut commands: Commands,
 ) {
     let (grid_visible, grid_id, grid_elevation, ref mut cache) = *tilemap;
-    debug!("Updating grid tile infos!");
 
     // Despawn all text entities if config says so
     if !config.show_info {

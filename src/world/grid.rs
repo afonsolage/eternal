@@ -12,6 +12,10 @@ pub type GridElevation = Grid<TileElevation>;
 #[derive(Default, Event)]
 pub struct GridIdChanged;
 
+pub fn grid_id_changed(q: Query<(), Changed<GridId>>) -> bool {
+    !q.is_empty()
+}
+
 #[derive(Debug, Default, Clone, Copy, Component, Reflect, Hash, PartialEq, Eq)]
 #[repr(u32)]
 pub enum LayerIndex {
