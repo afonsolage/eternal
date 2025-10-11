@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::world::tile::{TileElevation, TileId, TileVisible};
+use crate::world::tile::{self, TileElevation, TileId, TileVisible};
 
 pub const DIMS: UVec2 = UVec2::new(256, 256);
 pub const LAYER_SIZE: usize = (DIMS.x * DIMS.y) as usize;
@@ -43,12 +43,16 @@ impl LayerIndex {
     }
 }
 
-#[derive(Default, Clone, Debug, Component)]
-pub struct Grid<T, const N: usize = 1>(Vec<Layer<T>>);
-
 pub fn to_index(x: u16, y: u16) -> usize {
     y as usize * DIMS.x as usize + x as usize
 }
+
+pub fn grid_to_world(x: u16, y: u16) -> Vec2 {
+    Vec2::new(x as f32, y as f32) * tile::SIZE.as_vec2()
+}
+
+#[derive(Default, Clone, Debug, Component)]
+pub struct Grid<T, const N: usize = 1>(Vec<Layer<T>>);
 
 impl<T, const N: usize> Grid<T, N>
 where
