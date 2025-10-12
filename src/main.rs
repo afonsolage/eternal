@@ -9,12 +9,14 @@ use crate::world::grid;
 use crate::{
     config::ConfigPlugin,
     debug::DebugPlugin,
+    effects::EffectsPlugin,
     player::{Player, PlayerPlugin},
     world::WorldPlugin,
 };
 
 mod config;
 mod debug;
+mod effects;
 mod noise;
 mod player;
 mod ui;
@@ -38,6 +40,7 @@ fn main() {
             }),))
         .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
         .add_plugins((
+            EffectsPlugin,
             ConfigPlugin,
             WorldPlugin,
             PlayerPlugin,
