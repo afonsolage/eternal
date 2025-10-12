@@ -26,11 +26,11 @@ impl Default for PlayerController {
 }
 
 fn move_player(
-    mut query: Single<(&PlayerController, &mut LinearVelocity)>,
+    singleton: Single<(&PlayerController, &mut LinearVelocity)>,
     input: Res<ButtonInput<KeyCode>>,
 ) {
     let mut direction = Vec2::ZERO;
-    let (controller, ref mut velocity) = *query;
+    let (controller, mut velocity) = singleton.into_inner();
 
     if input.pressed(KeyCode::KeyW) {
         direction.y += 1.0;

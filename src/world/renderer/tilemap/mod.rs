@@ -243,7 +243,7 @@ fn update_tilemap_chunk_material(
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
     mut images: ResMut<Assets<Image>>,
 ) {
-    let (grid, TilemapCache { material, .. }) = *tilemap;
+    let (grid, TilemapCache { material, .. }) = tilemap.into_inner();
 
     // Using `get_mut` to trigger change detection and update this material on render world
     let Some(material) = materials.get_mut(material.id()) else {

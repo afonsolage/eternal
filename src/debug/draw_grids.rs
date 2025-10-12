@@ -348,7 +348,7 @@ struct DrawGridInfoCache {
 
 #[allow(clippy::type_complexity)]
 fn draw_grid_info(
-    mut tilemap: Single<(
+    tilemap: Single<(
         &GridVisible,
         &GridId,
         &GridElevation,
@@ -357,7 +357,7 @@ fn draw_grid_info(
     config: Res<DrawGridsConfig>,
     mut commands: Commands,
 ) {
-    let (grid_visible, grid_id, grid_elevation, ref mut cache) = *tilemap;
+    let (grid_visible, grid_id, grid_elevation, mut cache) = tilemap.into_inner();
 
     // Despawn all text entities if config says so
     if !config.show_info {

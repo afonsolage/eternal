@@ -45,7 +45,7 @@ pub fn on_grid_id_changed(
     singleton: Single<(Entity, &GridId)>,
     mut commands: Commands,
 ) {
-    let (entity, grid) = *singleton;
+    let (entity, grid) = singleton.into_inner();
 
     let walls = grid[LayerIndex::WALL]
         .positions()
