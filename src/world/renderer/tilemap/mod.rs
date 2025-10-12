@@ -170,11 +170,7 @@ fn spawn_chunks(mut world: DeferredWorld, HookContext { entity, .. }: HookContex
         tiles_per_chunk: TILES_PER_CHUNK.as_uvec2(),
         tile_size: tile::SIZE.as_vec2(),
         tiles_data,
-        config: Some(TilemapChunkMaterialConfig {
-            disable_floor_blending: true,
-            wall_hide_outline: true,
-            wall_hide_shadow: true,
-        }),
+        config: None,
     });
 
     let mut meshes = world.resource_mut::<Assets<Mesh>>();

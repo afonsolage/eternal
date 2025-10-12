@@ -36,7 +36,6 @@ impl TilePod {
 
 impl From<&TilemapChunkMaterial> for TilemapChunkMaterialConfig {
     fn from(material: &TilemapChunkMaterial) -> Self {
-        debug!("Material config: {:?}", material.config);
         material.config.unwrap_or_default()
     }
 }

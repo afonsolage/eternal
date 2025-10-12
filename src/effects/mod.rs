@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(unused)]
 use bevy::prelude::*;
 
 use crate::effects::impact::ImpactPlugin;
