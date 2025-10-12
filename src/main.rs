@@ -19,6 +19,7 @@ mod debug;
 mod effects;
 mod noise;
 mod player;
+mod run_conditions;
 mod ui;
 pub mod world;
 

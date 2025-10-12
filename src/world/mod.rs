@@ -4,6 +4,7 @@ use bevy::{platform::collections::HashMap, prelude::*};
 
 use crate::{
     config::tile::{TileConfig, TileConfigList},
+    run_conditions::timeout,
     world::{
         genesis::GenesisPlugin,
         grid::{GridId, GridIdChanged, GridVisible},
@@ -45,18 +46,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
     commands.spawn((Name::new("Map"), tilemap, GridId::new(), GridVisible::new()));
-}
-
-fn timeout(duration: Duration) -> impl FnMut(Local<f32>, Res<Time>) -> bool {
-    move |mut timer: Local<f32>, time: Res<Time>| {
-        *timer += time.delta_secs();
-        if *timer >= duration.as_secs_f32() {
-            *timer = 0.0;
-            true
-        } else {
-            false
-        }
-    }
 }
 
 #[derive(Resource)]

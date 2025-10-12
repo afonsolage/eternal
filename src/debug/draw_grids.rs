@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use avian2d::prelude::PhysicsGizmos;
 use bevy::{
     asset::RenderAssetUsages,
@@ -10,6 +12,7 @@ use bevy::{
 };
 
 use crate::{
+    run_conditions::timeout,
     ui::window::{WindowConfig, window},
     world::{
         grid::{
@@ -44,7 +47,7 @@ impl Plugin for DrawGridsPlugin {
                         .or(resource_changed::<TileRegistry>)
                         .or(grid_id_changed),
                 ),
-                draw_grid_info,
+                draw_grid_info.run_if(timeout(Duration::from_millis(100))),
             ),
         )
         .add_observer(on_add_tilemap_insert_cache)
