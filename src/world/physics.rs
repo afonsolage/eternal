@@ -1,10 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{
-    player::Player,
-    world::grid::{GridId, GridIdChanged, LayerIndex},
-};
+use crate::world::grid::{GridId, GridIdChanged, LayerIndex};
 
 pub struct PhysicsPlugin;
 
@@ -26,14 +23,6 @@ impl Plugin for PhysicsPlugin {
         .add_observer(on_add_grid)
         .add_observer(on_grid_id_changed);
     }
-}
-
-pub fn on_add_player(add: On<Add, Player>, mut commands: Commands) {
-    commands.entity(add.entity).insert((
-        RigidBody::Dynamic,
-        Collider::capsule(8.0, 10.0),
-        LockedAxes::ROTATION_LOCKED,
-    ));
 }
 
 pub fn on_add_grid(add: On<Add, GridId>, mut commands: Commands) {

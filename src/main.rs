@@ -4,7 +4,6 @@ use bevy::window::PresentMode;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
-use crate::player::PlayerCamera;
 use crate::ui::UiPlugin;
 use crate::world::grid;
 use crate::{
@@ -50,13 +49,6 @@ fn main() {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn((
-        Camera2d,
-        Name::new("Player Cam"),
-        IsDefaultUiCamera,
-        PlayerCamera,
-    ));
-
     commands.spawn((
         Player,
         Transform::from_translation(grid::grid_to_world(127, 127).extend(0.1)),

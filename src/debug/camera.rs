@@ -28,7 +28,7 @@ struct DebugCamera {
 
 fn setup(mut commands: Commands) {
     commands.spawn((
-        Name::new("Debug Camera"),
+        Name::new("Debug Cam"),
         DebugCamera {
             zoom_speed: 0.2,
             pan_speed: 0.8,

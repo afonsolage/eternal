@@ -114,7 +114,7 @@ fn update_tile_visibility(
     >,
     mut last_rect: Local<Rect>,
 ) {
-    let Ok((camera, camera_transform)) = q_camera.single() else {
+    let Some((camera, camera_transform)) = q_camera.iter().find(|&(c, _)| c.is_active) else {
         return;
     };
 
