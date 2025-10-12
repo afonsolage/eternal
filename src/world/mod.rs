@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::{platform::collections::HashMap, prelude::*};
 
 use crate::{
@@ -28,7 +30,7 @@ impl Plugin for WorldPlugin {
                 PreUpdate,
                 (
                     process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
-                    update_tile_visibility.run_if(time_passed(0.5)),
+                    update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
                     trigger_grid_changed,
                 ),
             );
@@ -45,12 +47,15 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((Name::new("Map"), tilemap, GridId::new(), GridVisible::new()));
 }
 
-fn time_passed(t: f32) -> impl FnMut(Local<f32>, Res<Time>) -> bool {
+fn timeout(duration: Duration) -> impl FnMut(Local<f32>, Res<Time>) -> bool {
     move |mut timer: Local<f32>, time: Res<Time>| {
-        // Tick the timer
         *timer += time.delta_secs();
-        // Return true if the timer has passed the time
-        *timer >= t
+        if *timer >= duration.as_secs_f32() {
+            *timer = 0.0;
+            true
+        } else {
+            false
+        }
     }
 }
 

@@ -127,3 +127,33 @@ impl<T> Layer<T> {
             .map(|(i, t)| ((i as u32 % DIMS.x) as u16, (i as u32 / DIMS.x) as u16, t))
     }
 }
+
+impl GridVisible {
+    pub fn calc_visibility_rect(&self) -> URect {
+        let mut rect = URect::EMPTY;
+
+        self.positions()
+            .filter_map(|(x, y, visible)| {
+                if visible.is_visible() {
+                    Some(UVec2::new(x as u32, y as u32))
+                } else {
+                    None
+                }
+            })
+            .for_each(|pos| {
+                if pos.x < rect.min.x {
+                    rect.min.x = pos.x;
+                } else if pos.x > rect.max.x {
+                    rect.max.x = pos.x;
+                }
+
+                if pos.y < rect.min.y {
+                    rect.min.y = pos.y;
+                } else if pos.y > rect.max.y {
+                    rect.max.y = pos.y;
+                }
+            });
+
+        rect
+    }
+}
