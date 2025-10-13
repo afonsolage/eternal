@@ -55,6 +55,6 @@ fn main() {
 fn setup(mut commands: Commands) {
     commands.spawn((
         Player,
-        Transform::from_translation(grid::grid_to_world(127, 127).extend(0.1)),
+        Transform::from_translation(grid::grid_to_world(127, 127).extend(0.0)),
     ));
 }

@@ -154,7 +154,7 @@ fn update_looking_at_pointer(
         .sample(looking_at.distance / MAX_LOOKING_AT_DISTANCE)
         .unwrap_or_default();
 
-    pointer.translation = (looking_at.dir * distance).extend(0.0);
+    pointer.translation = (looking_at.dir * distance).extend(-0.01);
 }
 
 fn trigger_action(

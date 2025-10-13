@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bevy = { version = "0.17"  }
 
-avian2d = { git = "https://github.com/Jondolf/avian", branch = "main" }
+avian2d = { version = "0.4" }
 
 bytemuck = "1.23.2"
 thiserror = { version = "2", default-features = false }

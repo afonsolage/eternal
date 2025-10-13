@@ -34,6 +34,7 @@ struct FxAnimation {
     elapsed: f32,
     loop_type: LoopType,
 }
+
 impl FxAnimation {
     fn once(fps: f32, first: usize, last: usize) -> Self {
         Self {

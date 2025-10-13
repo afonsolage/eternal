@@ -2,6 +2,7 @@ use bevy::{
     input::mouse::{MouseMotion, MouseWheel},
     prelude::*,
 };
+use bevy_inspector_egui::bevy_egui::PrimaryEguiContext;
 
 use crate::{
     player::PlayerCamera,
@@ -38,6 +39,7 @@ fn setup(mut commands: Commands) {
             is_active: false,
             ..default()
         },
+        PrimaryEguiContext,
     ));
 }
 

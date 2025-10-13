@@ -32,9 +32,9 @@ pub const LAYERS: [LayerIndex; LAYERS_COUNT] =
 impl LayerIndex {
     pub fn height(&self) -> f32 {
         match self {
-            LayerIndex::FLOOR => 0.0,
-            LayerIndex::WALL => 1.0,
-            LayerIndex::ROOF => 2.0,
+            LayerIndex::FLOOR => -1.00,
+            LayerIndex::WALL => 0.00,
+            LayerIndex::ROOF => 1.00,
         }
     }
 
