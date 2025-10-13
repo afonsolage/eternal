@@ -46,8 +46,8 @@ fn main() {
             WorldPlugin,
             PlayerPlugin,
             UiPlugin,
-            DebugPlugin,
         ))
+        .add_plugins(DebugPlugin)
         .add_systems(Startup, setup)
         .run();
 }
