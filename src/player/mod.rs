@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 use crate::player::{
-    camera::PlayerCameraPlugin, controller::PlayerControllerPlugin, physics::PlayerPhysicsPlugin,
+    actions::PlayerActionsPlugin, camera::PlayerCameraPlugin, controller::PlayerControllerPlugin,
+    physics::PlayerPhysicsPlugin,
 };
 
+mod actions;
 mod camera;
 mod controller;
 mod physics;
@@ -19,6 +21,7 @@ impl Plugin for PlayerPlugin {
             PlayerControllerPlugin,
             PlayerCameraPlugin,
             PlayerPhysicsPlugin,
+            PlayerActionsPlugin,
         ))
         .add_observer(on_add_player);
     }

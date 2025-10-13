@@ -8,7 +8,7 @@ use bevy::{
 
 use crate::player::{Player, PlayerCamera};
 
-const POINTER_OFFSET: f32 = 20.0;
+const MAX_LOOKING_AT_DISTANCE: f32 = 1000.0;
 
 pub struct PlayerControllerPlugin;
 
@@ -16,22 +16,38 @@ impl Plugin for PlayerControllerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            (move_player, update_looking_at, update_looking_at_pointer),
+            (
+                move_player,
+                update_looking_at,
+                update_looking_at_pointer,
+                trigger_action,
+            ),
         )
         .add_observer(on_add_player);
     }
 }
 
-#[derive(Component, Reflect, Deref)]
+#[derive(Component, Reflect)]
 #[component(immutable)]
-pub struct PlayerLookingAt(Vec2);
+pub struct PlayerLookingAt {
+    pub distance: f32,
+    pub dir: Vec2,
+    pub angle: f32,
+}
 
 #[derive(Component)]
 struct LookingAtPointer;
 
+#[derive(Event)]
+pub struct PlayerAction;
+
 impl Default for PlayerLookingAt {
     fn default() -> Self {
-        Self(Vec2::X)
+        Self {
+            dir: Vec2::X,
+            angle: 0.0,
+            distance: 0.0,
+        }
     }
 }
 
@@ -109,13 +125,21 @@ fn update_looking_at(
         return;
     };
 
-    let (entity, player_transform, &PlayerLookingAt(looking_at)) = player_singleton.into_inner();
+    let (entity, player_transform, looking_at) = player_singleton.into_inner();
 
-    let dir = (cursor_world_pos - player_transform.translation().xy()).normalize();
+    let offset = cursor_world_pos - player_transform.translation().xy();
+    let dir = offset.normalize();
+    let distance = offset.length().clamp(0.0, MAX_LOOKING_AT_DISTANCE);
 
     // Avoid updating with micro difference
-    if dir.distance(looking_at).abs() > 0.01 {
-        commands.entity(entity).insert(PlayerLookingAt(dir));
+    if dir.distance(looking_at.dir).abs() > 0.01 {
+        // Get the corresponding angle
+        let angle = dir.y.atan2(dir.x);
+        commands.entity(entity).insert(PlayerLookingAt {
+            distance,
+            dir,
+            angle,
+        });
     }
 }
 
@@ -123,14 +147,29 @@ fn update_looking_at_pointer(
     looking_at: Single<&PlayerLookingAt, Changed<PlayerLookingAt>>,
     mut pointer: Single<&mut Transform, With<LookingAtPointer>>,
 ) {
-    // Get the corresponding angle
-    let angle = looking_at.y.atan2(looking_at.x);
-
-    // Rotate to match the "up" version of the sprite, since the sprite is lookin up by default
-    let rotation = angle - std::f32::consts::PI / 2.0;
-
-    pointer.rotation = Quat::from_rotation_z(rotation);
+    pointer.rotation = Quat::from_rotation_z(looking_at.angle);
 
     // offset the pointer on the given direction
-    pointer.translation = looking_at.extend(0.09) * POINTER_OFFSET;
+    let distance = EasingCurve::new(5.0, 100.0, EaseFunction::SmoothStep)
+        .sample(looking_at.distance / MAX_LOOKING_AT_DISTANCE)
+        .unwrap_or_default();
+
+    pointer.translation = (looking_at.dir * distance).extend(0.0);
+}
+
+fn trigger_action(
+    input: Res<ButtonInput<MouseButton>>,
+    mut commands: Commands,
+    mut cooldown: Local<f32>,
+    time: Res<Time>,
+) {
+    if *cooldown > 0.0 {
+        *cooldown -= time.delta_secs();
+        return;
+    }
+
+    if input.pressed(MouseButton::Left) {
+        *cooldown = 0.5;
+        commands.trigger(PlayerAction);
+    }
 }

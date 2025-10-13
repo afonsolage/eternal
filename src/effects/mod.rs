@@ -1,16 +1,19 @@
 #![allow(unused)]
 use bevy::prelude::*;
 
-use crate::effects::impact::ImpactPlugin;
+use crate::effects::{impact::ImpactPlugin, swipe::SwipePlugin};
 
 mod impact;
 pub use impact::FxImpact;
+
+mod swipe;
+pub use swipe::FxSwipe;
 
 pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ImpactPlugin)
+        app.add_plugins((ImpactPlugin, SwipePlugin))
             .add_systems(Update, advance_frame);
     }
 }
