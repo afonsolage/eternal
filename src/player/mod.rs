@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::player::{
     actions::PlayerActionsPlugin, camera::PlayerCameraPlugin, controller::PlayerControllerPlugin,
-    physics::PlayerPhysicsPlugin, pixel_perfect::PixelPerfectPlugin,
+    physics::PlayerPhysicsPlugin,
 };
 
 mod actions;
@@ -15,9 +15,6 @@ pub use controller::PlayerController;
 
 mod physics;
 
-mod pixel_perfect;
-pub use pixel_perfect::PixelPerfectCollider;
-
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -27,7 +24,6 @@ impl Plugin for PlayerPlugin {
             PlayerCameraPlugin,
             PlayerPhysicsPlugin,
             PlayerActionsPlugin,
-            PixelPerfectPlugin,
         ))
         .add_observer(on_add_player);
     }

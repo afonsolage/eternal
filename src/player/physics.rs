@@ -16,5 +16,7 @@ pub fn on_add_player(add: On<Add, Player>, mut commands: Commands) {
         RigidBody::Dynamic,
         Collider::capsule(8.0, 10.0),
         LockedAxes::ROTATION_LOCKED,
+        // Disable to avoid annoying flickering when debugging
+        SleepingDisabled,
     ));
 }

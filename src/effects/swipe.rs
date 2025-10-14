@@ -1,7 +1,10 @@
 use avian2d::prelude::{Collider, CollisionEventsEnabled, CollisionStart, Sensor};
 use bevy::prelude::*;
 
-use crate::{effects::FxAnimation, player::PixelPerfectCollider};
+use crate::effects::{
+    FxAnimation,
+    pixel_perfect::{PixelPerfectCollider, PixelPerfectCollision},
+};
 
 pub struct SwipePlugin;
 
@@ -33,10 +36,10 @@ fn on_impact_add(
         .entity(add.entity)
         .insert((
             Sprite::from_atlas_image(texture, layout.into()),
-            //FxAnimation::once(1.0, 0, 6),
+            FxAnimation::once(20.0, 0, 6),
             PixelPerfectCollider,
         ))
-        .observe(|collision: On<CollisionStart>| {
+        .observe(|collision: On<PixelPerfectCollision>| {
             debug!("{collision:?}");
         });
 }

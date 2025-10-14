@@ -1,7 +1,7 @@
 #![allow(unused)]
 use bevy::prelude::*;
 
-use crate::effects::{impact::ImpactPlugin, swipe::SwipePlugin};
+use crate::effects::{impact::ImpactPlugin, pixel_perfect::PixelPerfectPlugin, swipe::SwipePlugin};
 
 mod impact;
 pub use impact::FxImpact;
@@ -9,11 +9,13 @@ pub use impact::FxImpact;
 mod swipe;
 pub use swipe::FxSwipe;
 
+mod pixel_perfect;
+
 pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((ImpactPlugin, SwipePlugin))
+        app.add_plugins((PixelPerfectPlugin, ImpactPlugin, SwipePlugin))
             .add_systems(Update, advance_frame);
     }
 }
@@ -33,6 +35,13 @@ struct FxAnimation {
     last: usize,
     elapsed: f32,
     loop_type: LoopType,
+}
+
+#[derive(EntityEvent)]
+pub struct FxIndexChanged {
+    pub entity: Entity,
+    pub old_index: usize,
+    pub new_index: usize,
 }
 
 impl FxAnimation {
@@ -117,7 +126,14 @@ fn advance_frame(
                 .as_mut()
                 .expect("At this point, atlas exists");
 
-            atlas.index = next_index
+            let evt = FxIndexChanged {
+                entity,
+                old_index: atlas.index,
+                new_index: next_index,
+            };
+
+            atlas.index = next_index;
+            commands.trigger(evt);
         }
     }
 }
