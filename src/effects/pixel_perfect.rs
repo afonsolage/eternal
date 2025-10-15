@@ -61,6 +61,12 @@ fn add_pixel_perfect_collider(
             colliders
         };
 
+        let active_index = sprite
+            .texture_atlas
+            .as_ref()
+            .map(|atlas| atlas.index)
+            .unwrap_or_default();
+
         let entities = colliders
             .into_iter()
             .enumerate()
@@ -81,6 +87,10 @@ fn add_pixel_perfect_collider(
                     })
                     .id();
 
+                if index == active_index {
+                    commands.entity(entity).insert(collider.clone());
+                }
+
                 (entity, collider)
             })
             .collect();
@@ -88,26 +98,26 @@ fn add_pixel_perfect_collider(
         commands
             .entity(entity)
             .insert(EntityColliderPairs(entities))
-            .observe(
-                move |index_changed: On<FxIndexChanged>,
-                      q_entity_collider_pairs: Query<&EntityColliderPairs>,
-                      q_colliders: Query<Entity, With<Collider>>,
-                      mut commands: Commands| {
-                    let Ok(EntityColliderPairs(pairs)) =
-                        q_entity_collider_pairs.get(index_changed.entity)
-                    else {
-                        return;
-                    };
-
-                    let (old_entity, _) = pairs[index_changed.old_index];
-                    commands.entity(old_entity).remove::<Collider>();
-
-                    // Collider is cheap to clone, just 2 Arcs and one Vec2
-                    let (entity, collider) = pairs[index_changed.new_index].clone();
-                    commands.entity(entity).insert(collider);
-                },
-            );
+            .observe(on_index_changed_update_collider);
     }
+}
+
+fn on_index_changed_update_collider(
+    index_changed: On<FxIndexChanged>,
+    q_entity_collider_pairs: Query<&EntityColliderPairs>,
+    q_colliders: Query<Entity, With<Collider>>,
+    mut commands: Commands,
+) {
+    let Ok(EntityColliderPairs(pairs)) = q_entity_collider_pairs.get(index_changed.entity) else {
+        return;
+    };
+
+    let (old_entity, _) = pairs[index_changed.old_index];
+    commands.entity(old_entity).remove::<Collider>();
+
+    // Collider is cheap to clone, just 2 Arcs and one Vec2
+    let (entity, collider) = pairs[index_changed.new_index].clone();
+    commands.entity(entity).insert(collider);
 }
 
 fn build_sprite_colliders(image: &Image, regions: &[URect]) -> Vec<Collider> {
