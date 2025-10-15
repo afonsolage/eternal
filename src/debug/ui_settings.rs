@@ -3,17 +3,21 @@ use std::time::Duration;
 use avian2d::prelude::PhysicsGizmos;
 use bevy::{
     asset::RenderAssetUsages,
-    feathers::controls::checkbox,
+    feathers::controls::{SliderProps, checkbox, slider},
     math::U16Vec2,
     mesh::PrimitiveTopology,
     prelude::*,
     ui::Checked,
-    ui_widgets::{ValueChange, observe},
+    ui_widgets::{SliderPrecision, SliderStep, ValueChange, observe, slider_self_update},
 };
 
 use crate::{
+    effects::FxFpsMultiplier,
     run_conditions::timeout,
-    ui::window::{WindowConfig, window},
+    ui::{
+        controls::spacer,
+        window::{WindowConfig, window},
+    },
     world::{
         grid::{
             self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex,
@@ -28,9 +32,9 @@ const WIREFRAME_HEIGHT: f32 = 100.3;
 const INFO_HEIGHT: f32 = 100.2;
 const IDS_HEIGHT: f32 = 100.1;
 
-pub struct DrawGridsPlugin;
+pub struct UiDebugSettingsPlugin;
 
-impl Plugin for DrawGridsPlugin {
+impl Plugin for UiDebugSettingsPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawn_debug_grids_ui);
         app.add_systems(
@@ -41,9 +45,9 @@ impl Plugin for DrawGridsPlugin {
                     update_physics_config,
                     update_render_config,
                 )
-                    .run_if(resource_changed::<DrawGridsConfig>),
+                    .run_if(resource_changed::<UiDebugSettings>),
                 draw_grid_tile_ids.run_if(
-                    resource_changed::<DrawGridsConfig>
+                    resource_changed::<UiDebugSettings>
                         .or(resource_changed::<TileRegistry>)
                         .or(grid_id_changed),
                 ),
@@ -51,7 +55,7 @@ impl Plugin for DrawGridsPlugin {
             ),
         )
         .add_observer(on_add_tilemap_insert_cache)
-        .insert_resource(DrawGridsConfig {
+        .insert_resource(UiDebugSettings {
             show_layers: [true; LAYERS_COUNT],
             wall_shadow: true,
             wall_border: true,
@@ -62,7 +66,7 @@ impl Plugin for DrawGridsPlugin {
 }
 
 #[derive(Default, Copy, Clone, Resource)]
-struct DrawGridsConfig {
+struct UiDebugSettings {
     show_ids: bool,
     show_grid: bool,
     show_info: bool,
@@ -84,7 +88,7 @@ fn list_layers() -> SpawnIter<impl Iterator<Item = impl Bundle>> {
             observe(
                 move |change: On<ValueChange<bool>>,
                       mut commands: Commands,
-                      mut config: ResMut<DrawGridsConfig>| {
+                      mut config: ResMut<UiDebugSettings>| {
                     config.show_layers[l as usize] = change.value;
                     if change.value {
                         commands.entity(change.source).insert(Checked);
@@ -134,7 +138,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.show_ids = change.value;
                                             if config.show_ids {
                                                 commands.entity(change.source).insert(Checked);
@@ -149,7 +153,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.show_grid = change.value;
                                             if config.show_grid {
                                                 commands.entity(change.source).insert(Checked);
@@ -164,7 +168,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.show_info = change.value;
                                             if config.show_info {
                                                 commands.entity(change.source).insert(Checked);
@@ -179,7 +183,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.floor_blending = change.value;
                                             if config.floor_blending {
                                                 commands.entity(change.source).insert(Checked);
@@ -194,7 +198,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.wall_shadow = change.value;
                                             if config.wall_shadow {
                                                 commands.entity(change.source).insert(Checked);
@@ -209,7 +213,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.wall_border = change.value;
                                             if config.wall_border {
                                                 commands.entity(change.source).insert(Checked);
@@ -218,7 +222,7 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                             }
                                         }
                                     ),
-                                )
+                                ),
                             ]
                         ),
                         (
@@ -228,22 +232,15 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                 ..default()
                             },
                             Children::spawn((
-                                Spawn((
-                                    Node {
-                                        align_self: AlignSelf::Center,
-                                        margin: UiRect::bottom(px(1.0)),
-                                        ..default()
-                                    },
-                                    Text::new("Layers")
-                                )),
+                                Spawn(Text::new("Layers")),
                                 list_layers(),
-                                Spawn(Text::new("")),
+                                Spawn(spacer(5.0)),
                                 Spawn((
                                     checkbox((), Spawn(Text::new("Show Colliders"))),
                                     observe(
                                         |change: On<ValueChange<bool>>,
                                          mut commands: Commands,
-                                         mut config: ResMut<DrawGridsConfig>| {
+                                         mut config: ResMut<UiDebugSettings>| {
                                             config.show_colliders = change.value;
                                             if config.show_colliders {
                                                 commands.entity(change.source).insert(Checked);
@@ -252,6 +249,22 @@ fn spawn_debug_grids_ui(mut commands: Commands) {
                                             }
                                         }
                                     ),
+                                )),
+                                Spawn(spacer(5.0)),
+                                Spawn(Text::new("Fx FPS Multiplier")),
+                                Spawn((
+                                    slider(
+                                        SliderProps {
+                                            value: 1.0,
+                                            min: 0.0,
+                                            max: 2.0,
+                                        },
+                                        (SliderStep(0.1), SliderPrecision(1))
+                                    ),
+                                    observe(slider_self_update),
+                                    observe(|change: On<ValueChange<f32>>, mut commands: Commands|{
+                                        commands.insert_resource(FxFpsMultiplier(change.value));
+                                    }),
                                 )),
                             ))
                         )
@@ -357,7 +370,7 @@ fn draw_grid_info(
         &GridElevation,
         &mut DrawGridInfoCache,
     )>,
-    config: Res<DrawGridsConfig>,
+    config: Res<UiDebugSettings>,
     mut commands: Commands,
 ) {
     let (grid_visible, grid_id, grid_elevation, mut cache) = tilemap.into_inner();
@@ -413,7 +426,7 @@ fn draw_grid_wireframe(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut entities: Local<Vec<Entity>>,
-    config: Res<DrawGridsConfig>,
+    config: Res<UiDebugSettings>,
 ) {
     debug!("Drawing grid wireframe");
 
@@ -468,7 +481,7 @@ fn draw_grid_tile_ids(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut entities: Local<Vec<Entity>>,
-    config: Res<DrawGridsConfig>,
+    config: Res<UiDebugSettings>,
 ) {
     entities
         .drain(..)
@@ -536,7 +549,7 @@ fn draw_grid_tile_ids(
 }
 
 fn update_render_config(
-    config: Res<DrawGridsConfig>,
+    config: Res<UiDebugSettings>,
     cache: Single<&TilemapCache, With<Tilemap>>,
     q_layers: Query<(&mut Visibility, &LayerIndex)>,
     mut materials: ResMut<Assets<TilemapChunkMaterial>>,
@@ -562,6 +575,6 @@ fn update_render_config(
     }
 }
 
-fn update_physics_config(config: Res<DrawGridsConfig>, mut store: ResMut<GizmoConfigStore>) {
+fn update_physics_config(config: Res<UiDebugSettings>, mut store: ResMut<GizmoConfigStore>) {
     store.config_mut::<PhysicsGizmos>().0.enabled = config.show_colliders;
 }

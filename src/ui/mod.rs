@@ -3,6 +3,7 @@ use bevy::{
     feathers::{FeathersPlugins, dark_theme::create_dark_theme, theme::UiTheme},
 };
 
+pub mod controls;
 pub mod window;
 
 pub struct UiPlugin;

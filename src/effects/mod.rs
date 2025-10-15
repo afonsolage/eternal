@@ -1,4 +1,6 @@
 #![allow(unused)]
+use std::ops::Deref;
+
 use bevy::prelude::*;
 
 use crate::effects::{impact::ImpactPlugin, pixel_perfect::PixelPerfectPlugin, swipe::SwipePlugin};
@@ -15,10 +17,21 @@ pub struct EffectsPlugin;
 
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((PixelPerfectPlugin, ImpactPlugin, SwipePlugin))
+        app.insert_resource(FxFpsMultiplier(1.0))
+            .add_plugins((PixelPerfectPlugin, ImpactPlugin, SwipePlugin))
             .add_systems(Update, advance_frame);
     }
 }
+
+#[derive(EntityEvent)]
+pub struct FxIndexChanged {
+    pub entity: Entity,
+    pub old_index: usize,
+    pub new_index: usize,
+}
+
+#[derive(Resource, Reflect, Deref)]
+pub struct FxFpsMultiplier(pub f32);
 
 #[derive(Default)]
 enum LoopType {
@@ -35,13 +48,6 @@ struct FxAnimation {
     last: usize,
     elapsed: f32,
     loop_type: LoopType,
-}
-
-#[derive(EntityEvent)]
-pub struct FxIndexChanged {
-    pub entity: Entity,
-    pub old_index: usize,
-    pub new_index: usize,
 }
 
 impl FxAnimation {
@@ -79,6 +85,7 @@ impl FxAnimation {
 fn advance_frame(
     mut q_sprites: Query<(Entity, &mut Sprite, &mut FxAnimation)>,
     mut commands: Commands,
+    fps_multi: Res<FxFpsMultiplier>,
     time: Res<Time>,
 ) {
     for (entity, mut sprite, mut anim) in &mut q_sprites {
@@ -87,7 +94,7 @@ fn advance_frame(
             continue;
         };
 
-        anim.elapsed += time.delta_secs() * anim.fps;
+        anim.elapsed += time.delta_secs() * anim.fps * (**fps_multi);
         let current = anim.elapsed as usize;
 
         let next_index = match anim.loop_type {
