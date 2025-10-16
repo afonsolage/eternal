@@ -34,7 +34,6 @@ enum LoopType {
     #[default]
     None,
     PingPong,
-    #[allow(unused)]
     Cicle(usize),
 }
 
@@ -65,7 +64,7 @@ impl FxAnimation {
         }
     }
 
-    #[allow(unused)]
+    #[expect(unused, reason = "I'll add cycle fx in the future")]
     fn cycle(fps: f32, first: usize, last: usize, count: usize) -> Self {
         Self {
             fps,
@@ -96,9 +95,8 @@ fn advance_frame(
                 if current > anim.last {
                     commands.entity(entity).despawn();
                     continue;
-                } else {
-                    current
                 }
+                current
             }
             LoopType::PingPong => {
                 if current > anim.last * 2 {

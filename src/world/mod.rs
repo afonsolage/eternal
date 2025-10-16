@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use bevy::{platform::collections::HashMap, prelude::*};
+use bevy::{math::U16Vec2, platform::collections::HashMap, prelude::*};
 
 use crate::{
     config::tile::{TileConfig, TileConfigList},
@@ -8,7 +8,7 @@ use crate::{
     world::{
         actions::ActionsPlugin,
         genesis::GenesisPlugin,
-        grid::{GridId, GridIdChanged, GridVisible},
+        grid::{GridId, GridIdChanged, GridVisible, LAYERS},
         physics::PhysicsPlugin,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
         tile::{TileId, TileInfo, TileRegistry, TileVisible},
@@ -39,7 +39,7 @@ impl Plugin for WorldPlugin {
             (
                 process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
                 update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
-                trigger_grid_changed,
+                update_tile_ids.run_if(timeout(Duration::from_millis(100))),
             ),
         );
     }
@@ -56,7 +56,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 #[derive(Resource)]
-#[allow(unused)]
+#[expect(unused, reason = "The handle needs to be hold somewhere")]
 struct TileInfoHandle(Handle<TileConfigList>);
 
 fn process_tile_info_list(
@@ -106,7 +106,6 @@ fn process_tile_info_list(
     }
 }
 
-#[allow(clippy::type_complexity)]
 fn update_tile_visibility(
     mut grid: Single<&mut GridVisible>,
     q_camera: Query<
@@ -153,8 +152,22 @@ fn update_tile_visibility(
     }
 }
 
-fn trigger_grid_changed(changed: Query<(), Changed<GridId>>, mut commands: Commands) {
-    if !changed.is_empty() {
-        commands.trigger(GridIdChanged)
+fn update_tile_ids(mut grid: Single<&mut GridId>, mut commands: Commands) {
+    for layer_index in LAYERS {
+        let queue = grid[layer_index].drain_queue();
+
+        // Avoid triggering change detection
+        if queue.is_empty() {
+            continue;
+        }
+
+        let (positions, values): (Vec<_>, Vec<_>) = queue.into_iter().unzip();
+
+        let layer = &mut grid[layer_index];
+        for (&U16Vec2 { x, y }, value) in positions.iter().zip(values) {
+            layer.set(x, y, value);
+        }
+
+        commands.trigger(GridIdChanged(layer_index, positions));
     }
 }

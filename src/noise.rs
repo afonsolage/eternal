@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![expect(unused, reason = "I'll revisit this whole class later on")]
 use bevy::{math::vec2, prelude::*};
 use noise::{Fbm, MultiFractal, NoiseFn, Perlin};
 

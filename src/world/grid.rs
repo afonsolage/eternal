@@ -1,4 +1,9 @@
-use bevy::prelude::*;
+use std::sync::{
+    Mutex,
+    mpsc::{Receiver, Sender},
+};
+
+use bevy::{math::U16Vec2, prelude::*};
 
 use crate::world::tile::{self, TileElevation, TileId, TileVisible};
 
@@ -10,7 +15,7 @@ pub type GridVisible = Grid<TileVisible>;
 pub type GridElevation = Grid<TileElevation>;
 
 #[derive(Default, Event)]
-pub struct GridIdChanged;
+pub struct GridIdChanged(pub LayerIndex, pub Vec<U16Vec2>);
 
 pub fn grid_id_changed(q: Query<(), Changed<GridId>>) -> bool {
     !q.is_empty()
@@ -59,7 +64,7 @@ where
     T: Default + Clone,
 {
     pub fn new() -> Self {
-        Self(vec![Layer(vec![Default::default(); LAYER_SIZE]); N])
+        Self(vec![Layer::new(vec![Default::default(); LAYER_SIZE]); N])
     }
 }
 
@@ -109,22 +114,80 @@ impl<T> std::ops::DerefMut for Grid<T, 1> {
     }
 }
 
-#[derive(Default, Clone, Debug, Deref, DerefMut)]
-pub struct Layer<T>(Vec<T>);
+#[derive(Debug)]
+pub struct Layer<T> {
+    data: Vec<T>,
+    sender: Sender<(U16Vec2, T)>,
+    // We need this Mutex since bevy ecs Component requires Send + Sync
+    // I think there is a better way to do this.
+    receiver: Mutex<Receiver<(U16Vec2, T)>>,
+}
 
 impl<T> Layer<T> {
+    fn new(data: Vec<T>) -> Self {
+        let (sender, receiver) = std::sync::mpsc::channel();
+        Self {
+            data,
+            sender,
+            receiver: Mutex::new(receiver),
+        }
+    }
+
     pub fn get(&self, x: u16, y: u16) -> &T {
-        &self[to_index(x, y)]
+        &self.data[to_index(x, y)]
     }
 
     pub fn set(&mut self, x: u16, y: u16, value: T) {
-        self[to_index(x, y)] = value
+        self.data[to_index(x, y)] = value;
     }
 
     pub fn positions(&self) -> impl Iterator<Item = (u16, u16, &T)> {
         self.iter()
             .enumerate()
             .map(|(i, t)| ((i as u32 % DIMS.x) as u16, (i as u32 / DIMS.x) as u16, t))
+    }
+}
+
+impl<T> Layer<T> {
+    pub fn queue(&self, x: u16, y: u16, value: T) {
+        let _ = self.sender.send((U16Vec2::new(x, y), value));
+    }
+
+    pub fn drain_queue(&self) -> Vec<(U16Vec2, T)> {
+        self.receiver
+            .try_lock()
+            .expect("Bevy ECS ensures only on exclusive access happens at any given time")
+            .try_iter()
+            .collect()
+    }
+}
+
+impl<T> std::ops::Deref for Layer<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.data
+    }
+}
+
+impl<T> std::ops::DerefMut for Layer<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.data
+    }
+}
+
+impl<T> Default for Layer<T> {
+    fn default() -> Self {
+        Self::new(default())
+    }
+}
+
+impl<T> Clone for Layer<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        Self::new(self.data.clone())
     }
 }
 

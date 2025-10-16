@@ -66,7 +66,6 @@ fn on_map_click(release: On<Pointer<Release>>, mut grid: Single<&mut GridId>) {
     debug!("Changing {current:?} to none at {tile_pos}");
 }
 
-#[allow(clippy::type_complexity)]
 fn toggle_camera(
     input: Res<ButtonInput<KeyCode>>,
     debug_singleton: Single<(Entity, &mut Camera), (With<DebugCamera>, Without<PlayerCamera>)>,

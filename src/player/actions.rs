@@ -16,7 +16,7 @@ pub struct PlayerActionsPlugin;
 pub struct PlayerActionHit {
     #[event_target]
     pub entity: Entity,
-    #[allow(unused)]
+    #[expect(unused, reason = "I'll need this in the future")]
     pub hit_source: Entity,
     pub collision_source: Entity,
 }

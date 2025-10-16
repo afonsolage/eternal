@@ -21,11 +21,7 @@ fn on_add_grid(add: On<Add, GridId>, mut commands: Commands) {
     commands.entity(add.entity).observe(on_wall_hit_by_player);
 }
 
-fn on_wall_hit_by_player(
-    hit: On<PlayerActionHit>,
-    collisions: Collisions,
-    mut grid: Single<&mut GridId>,
-) {
+fn on_wall_hit_by_player(hit: On<PlayerActionHit>, collisions: Collisions, grid: Single<&GridId>) {
     collisions
         .get(hit.event_target(), hit.collision_source)
         .iter()
@@ -36,8 +32,8 @@ fn on_wall_hit_by_player(
                     .iter()
                     .map(|p| p.point.as_u16vec2() / tile::SIZE)
                     .for_each(|grid_pos| {
-                        grid[LayerIndex::WALL].set(grid_pos.x, grid_pos.y, TileId::default());
+                        grid[LayerIndex::WALL].queue(grid_pos.x, grid_pos.y, TileId::default());
                     });
-            })
+            });
         });
 }

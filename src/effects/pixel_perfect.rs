@@ -26,14 +26,13 @@ pub struct PixelPerfectCollision {
     pub source: Entity,
     pub target: Entity,
 
-    #[allow(unused)]
+    #[expect(unused, reason = "This will be used in the future")]
     pub index: usize,
 }
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct ColliderCacheMap(HashMap<AssetId<Image>, Vec<Collider>>);
 
-#[allow(clippy::type_complexity)]
 fn add_pixel_perfect_collider(
     sprites: Query<(Entity, &Sprite), (With<PixelPerfectCollider>, Without<EntityColliderPairs>)>,
     images: Res<Assets<Image>>,

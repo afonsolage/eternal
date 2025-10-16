@@ -1,4 +1,3 @@
-#![allow(unused)]
 use bevy::{
     asset::RenderAssetUsages,
     camera::visibility::VisibilityClass,
@@ -14,13 +13,9 @@ mod material;
 
 pub use material::{TilePod, TilemapChunkMaterial};
 
-use crate::{
-    config::tile::TileConfigList,
-    world::{
-        grid::{self, Grid, GridId, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
-        renderer::tilemap::material::TilemapChunkMaterialConfig,
-        tile::{self, TileId, TileRegistry},
-    },
+use crate::world::{
+    grid::{self, GridId, GridIdChanged, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
+    tile::{self, TileRegistry},
 };
 
 pub const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);
@@ -32,16 +27,10 @@ impl Plugin for TilemapPlugin {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
             .add_systems(
                 Update,
-                update_tilemap_chunk_material.run_if(should_update_chunk_material),
-            );
+                update_tilemap_chunk_material.run_if(resource_changed::<TileRegistry>),
+            )
+            .add_observer(on_grid_id_changed);
     }
-}
-
-fn should_update_chunk_material(
-    registry: Res<TileRegistry>,
-    q: Query<(), Changed<GridId>>,
-) -> bool {
-    registry.is_changed() || !q.is_empty()
 }
 
 #[derive(Debug, Component, Reflect)]
@@ -85,14 +74,6 @@ pub struct TilemapChunkMap(HashMap<TilemapChunkPos, Entity>);
 pub struct TilemapCache {
     pub material: Handle<TilemapChunkMaterial>,
     pub mesh: Handle<Mesh>,
-}
-
-#[derive(Clone)]
-struct TilemapParams {
-    parent: Entity,
-    atlas_texture: Handle<Image>,
-    atlas_dims: UVec2,
-    tile_size: Vec2,
 }
 
 fn spawn_single_chunk(
@@ -214,6 +195,18 @@ fn create_tilemap_chunk_mesh() -> Mesh {
 #[derive(Component, Default, Debug, Clone, Copy)]
 pub struct TilemapIndex(pub u16);
 
+fn get_data_pod_layer(layer: LayerIndex, tile_data_image: &mut Image) -> &mut [TilePod] {
+    let begin = layer.base_index();
+    let end = begin + LAYER_SIZE;
+
+    &mut bytemuck::cast_slice_mut(
+        tile_data_image
+            .data
+            .as_mut()
+            .expect("Material must have been initialized"),
+    )[begin..end]
+}
+
 fn update_tilemap_chunk_material(
     tilemap: Single<(&GridId, &TilemapCache)>,
     tile_info_map: Res<TileRegistry>,
@@ -253,14 +246,40 @@ fn update_tilemap_chunk_material(
     }
 }
 
-fn get_data_pod_layer(layer: LayerIndex, tile_data_image: &mut Image) -> &mut [TilePod] {
-    let begin = layer.base_index();
-    let end = begin + LAYER_SIZE;
+fn on_grid_id_changed(
+    changed: On<GridIdChanged>,
+    tilemap: Single<(&GridId, &TilemapCache)>,
+    tile_info_map: Res<TileRegistry>,
+    mut materials: ResMut<Assets<TilemapChunkMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let (grid, TilemapCache { material, .. }) = tilemap.into_inner();
 
-    &mut bytemuck::cast_slice_mut(
-        tile_data_image
-            .data
-            .as_mut()
-            .expect("Material must have been initialized"),
-    )[begin..end]
+    // Using `get_mut` to trigger change detection and update this material on render world
+    let Some(material) = materials.get_mut(material.id()) else {
+        warn!("Failed to update tilemap material. Material not found.");
+        return;
+    };
+
+    let Some(tile_data_image) = images.get_mut(material.tiles_data.id()) else {
+        warn!("Failed to update tilemap material. Tile data not found.");
+        return;
+    };
+
+    let GridIdChanged(layer, positions) = &*changed;
+
+    let tile_data_pods = get_data_pod_layer(*layer, tile_data_image);
+    let grid_layer = &grid[*layer];
+
+    for &U16Vec2 { x, y } in positions {
+        let id = grid_layer.get(x, y);
+        let info = tile_info_map.get(id).unwrap_or(&tile::NONE_INFO);
+
+        let pod = &mut tile_data_pods[grid::to_index(x, y)];
+        pod.index = info.atlas_index;
+        pod.weight = match info.blend_tech {
+            tile::BlendTech::None => u16::MAX,
+            tile::BlendTech::Weight(w) => w,
+        };
+    }
 }

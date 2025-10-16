@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;

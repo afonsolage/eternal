@@ -362,7 +362,6 @@ struct DrawGridInfoCache {
     entities: Grid<Option<Entity>>,
 }
 
-#[allow(clippy::type_complexity)]
 fn draw_grid_info(
     tilemap: Single<(
         &GridVisible,

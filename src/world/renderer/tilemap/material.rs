@@ -1,5 +1,5 @@
 use bevy::{
-    asset::{Asset, Handle, RenderAssetUsages},
+    asset::{Asset, Handle},
     image::{Image, ImageSampler},
     log::debug,
     math::{UVec2, Vec2},
@@ -13,8 +13,6 @@ use bevy::{
 use bytemuck::{Pod, Zeroable};
 
 use crate::world::grid;
-
-use super::TILES_PER_CHUNK;
 
 const SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 
@@ -84,7 +82,7 @@ impl Material2d for TilemapChunkMaterial {
 
     fn specialize(
         descriptor: &mut bevy::render::render_resource::RenderPipelineDescriptor,
-        layout: &bevy::mesh::MeshVertexBufferLayoutRef,
+        _layout: &bevy::mesh::MeshVertexBufferLayoutRef,
         key: bevy::sprite_render::Material2dKey<Self>,
     ) -> bevy::ecs::error::Result<(), bevy::render::render_resource::SpecializedMeshPipelineError>
     {

@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::world::grid::{GridId, GridIdChanged, LayerIndex};
+use crate::world::grid::{GridId, LayerIndex};
 
 pub struct PhysicsPlugin;
 
@@ -20,8 +20,8 @@ impl Plugin for PhysicsPlugin {
                 ..default()
             },
         )
-        .add_observer(on_add_grid)
-        .add_observer(on_grid_id_changed);
+        .add_systems(Update, update_wall_collider)
+        .add_observer(on_add_grid);
     }
 }
 
@@ -29,9 +29,8 @@ pub fn on_add_grid(add: On<Add, GridId>, mut commands: Commands) {
     commands.entity(add.entity).insert(RigidBody::Static);
 }
 
-pub fn on_grid_id_changed(
-    _: On<GridIdChanged>,
-    singleton: Single<(Entity, &GridId)>,
+pub fn update_wall_collider(
+    singleton: Single<(Entity, &GridId), Changed<GridId>>,
     mut commands: Commands,
 ) {
     let (entity, grid) = singleton.into_inner();
