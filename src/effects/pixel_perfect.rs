@@ -25,6 +25,8 @@ pub struct PixelPerfectCollision {
     #[event_target]
     pub source: Entity,
     pub target: Entity,
+
+    #[allow(unused)]
     pub index: usize,
 }
 
@@ -105,7 +107,6 @@ fn add_pixel_perfect_collider(
 fn on_index_changed_update_collider(
     index_changed: On<FxIndexChanged>,
     q_entity_collider_pairs: Query<&EntityColliderPairs>,
-    q_colliders: Query<Entity, With<Collider>>,
     mut commands: Commands,
 ) {
     let Ok(EntityColliderPairs(pairs)) = q_entity_collider_pairs.get(index_changed.entity) else {

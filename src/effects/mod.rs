@@ -34,6 +34,7 @@ enum LoopType {
     #[default]
     None,
     PingPong,
+    #[allow(unused)]
     Cicle(usize),
 }
 
@@ -64,6 +65,7 @@ impl FxAnimation {
         }
     }
 
+    #[allow(unused)]
     fn cycle(fps: f32, first: usize, last: usize, count: usize) -> Self {
         Self {
             fps,

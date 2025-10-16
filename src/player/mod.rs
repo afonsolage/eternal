@@ -31,7 +31,7 @@ impl Plugin for PlayerPlugin {
 }
 
 #[derive(Component)]
-#[require(Transform)]
+#[require(Transform, Sprite)]
 pub struct Player;
 
 fn on_add_player(add: On<Add, Player>, mut commands: Commands, asset_server: Res<AssetServer>) {
