@@ -1,34 +1,13 @@
 #![allow(unused)]
 use bevy::{
-    app::{Plugin, Update},
-    asset::{Assets, Handle, RenderAssetUsages},
-    camera::visibility::{Visibility, VisibilityClass, add_visibility_class},
-    ecs::{
-        component::Component,
-        entity::Entity,
-        hierarchy::ChildOf,
-        lifecycle::HookContext,
-        name::Name,
-        observer::On,
-        query::{Changed, With},
-        schedule::{
-            IntoScheduleConfigs, SystemCondition,
-            common_conditions::{resource_changed, resource_exists},
-        },
-        system::{Commands, Query, Res, ResMut, Single},
-        world::{DeferredWorld, Mut},
-    },
-    image::Image,
-    log::{debug, error, info, warn},
-    math::{IVec2, U8Vec2, U16Vec2, UVec2, Vec2, primitives::Rectangle},
-    mesh::{Mesh, Mesh2d, MeshTag, PrimitiveTopology},
-    picking::events::{Pointer, Release},
+    asset::RenderAssetUsages,
+    camera::visibility::VisibilityClass,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    math::U16Vec2,
+    mesh::{MeshTag, PrimitiveTopology},
     platform::collections::HashMap,
-    prelude::{Deref, DerefMut},
-    reflect::Reflect,
-    sprite_render::{Material2dPlugin, MeshMaterial2d},
-    transform::components::Transform,
-    utils::default,
+    prelude::*,
+    sprite_render::Material2dPlugin,
 };
 
 mod material;
@@ -53,14 +32,16 @@ impl Plugin for TilemapPlugin {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
             .add_systems(
                 Update,
-                update_tilemap_chunk_material.run_if(
-                    resource_exists::<TileRegistry>.and(
-                        resource_changed::<TileRegistry>
-                            .or(|q: Query<(), Changed<GridId>>| !q.is_empty()),
-                    ),
-                ),
+                update_tilemap_chunk_material.run_if(should_update_chunk_material),
             );
     }
+}
+
+fn should_update_chunk_material(
+    registry: Res<TileRegistry>,
+    q: Query<(), Changed<GridId>>,
+) -> bool {
+    registry.is_changed() || !q.is_empty()
 }
 
 #[derive(Debug, Component, Reflect)]
@@ -251,8 +232,6 @@ fn update_tilemap_chunk_material(
         warn!("Failed to update tilemap material. Tile data not found.");
         return;
     };
-
-    debug!("Updating material of tilemap.");
 
     for layer in LAYERS {
         let tile_data_pods = get_data_pod_layer(layer, tile_data_image);

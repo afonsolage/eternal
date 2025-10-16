@@ -1,5 +1,5 @@
 #![allow(unused)]
-use std::ops::Deref;
+use std::{ops::Deref, time::Duration};
 
 use bevy::{
     asset::RenderAssetUsages,
@@ -15,6 +15,7 @@ use bevy::{
 
 use crate::{
     config::tile::TileConfigList,
+    run_conditions::timeout,
     ui::window::{WindowConfig, window},
     world::{
         grid::{self, Grid, GridId, GridVisible, Layer, LayerIndex},
@@ -26,23 +27,34 @@ pub struct UIDrawTileMap;
 
 impl Plugin for UIDrawTileMap {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_debug_ui)
-            .add_systems(Update, update_tile_map_color_ui.run_if(should_redraw_map));
+        app.add_systems(Startup, spawn_debug_ui).add_systems(
+            Update,
+            (
+                update_map.run_if(timeout(Duration::from_millis(500)).and(should_redraw_map)),
+                update_overlay.run_if(should_redraw_overlay),
+            ),
+        );
     }
 }
 
 #[derive(Component)]
-struct ImageContainer;
+struct MapImage;
+
+#[derive(Component)]
+struct OverlayImage;
 
 #[derive(Component)]
 struct DisplayMapUI;
 
-#[allow(clippy::type_complexity)]
 fn should_redraw_map(
     registry: Res<TileRegistry>,
-    q_grid_changed: Query<(), Or<(Changed<GridId>, Changed<GridVisible>)>>,
+    q_grid_changed: Query<(), Changed<GridId>>,
 ) -> bool {
     registry.is_changed() || !q_grid_changed.is_empty()
+}
+
+fn should_redraw_overlay(q: Query<(), Changed<GridVisible>>) -> bool {
+    !q.is_empty()
 }
 
 fn spawn_debug_ui(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
@@ -83,23 +95,41 @@ fn spawn_debug_ui(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
                     justify_content: JustifyContent::Center,
                     ..Default::default()
                 },
-                children![(
-                    ImageContainer,
-                    ImageNode {
-                        flip_y: true,
-                        image: images.add(image),
-                        ..Default::default()
-                    }
-                )],
+                children![
+                    (
+                        Name::new("Map"),
+                        MapImage,
+                        ImageNode {
+                            flip_y: true,
+                            image: images.add(image.clone()),
+                            ..Default::default()
+                        }
+                    ),
+                    (
+                        Name::new("Overlay"),
+                        OverlayImage,
+                        ImageNode {
+                            flip_y: true,
+                            image: images.add(image),
+                            ..Default::default()
+                        },
+                        Node {
+                            position_type: PositionType::Absolute,
+                            width: percent(100.0),
+                            height: percent(100.0),
+                            ..default()
+                        },
+                    )
+                ],
             ),
         ),
         DisplayMapUI,
     ));
 }
 
-fn update_tile_map_color_ui(
-    singleton: Single<(&GridId, &GridVisible)>,
-    image_node: Single<&ImageNode, With<ImageContainer>>,
+fn update_map(
+    grid_id: Single<&GridId>,
+    image_node: Single<&ImageNode, With<MapImage>>,
     tile_info: Res<TileRegistry>,
     mut images: ResMut<Assets<Image>>,
 ) {
@@ -111,24 +141,14 @@ fn update_tile_map_color_ui(
         return;
     };
 
-    let (grid_id, grid_visible) = singleton.into_inner();
-
-    let visible_rect = grid_visible.calc_visibility_rect();
-
     draw_tile_map_colors(
         image.data.as_mut().expect("Data is initialized on setup"),
-        grid_id,
+        grid_id.into_inner(),
         tile_info,
-        visible_rect,
     );
 }
 
-fn draw_tile_map_colors(
-    data: &mut [u8],
-    grid: &GridId,
-    tile_info_map: Res<TileRegistry>,
-    visibility_rect: URect,
-) {
+fn draw_tile_map_colors(data: &mut [u8], grid: &GridId, tile_info_map: Res<TileRegistry>) {
     data.fill(0);
 
     let colors: &mut [[f32; 4]] = bytemuck::cast_slice_mut(data);
@@ -147,6 +167,29 @@ fn draw_tile_map_colors(
 
             *color_buffer = tile_info.map_color.to_f32_array();
         });
+}
+
+fn update_overlay(
+    grid_visible: Single<&GridVisible>,
+    image_node: Single<&ImageNode, With<OverlayImage>>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let Some(mut image) = images.get_mut(image_node.image.id()) else {
+        return;
+    };
+
+    let visible_rect = grid_visible.calc_visibility_rect();
+
+    draw_overlay(
+        image.data.as_mut().expect("Data is initialized on setup"),
+        visible_rect,
+    );
+}
+
+fn draw_overlay(data: &mut [u8], visibility_rect: URect) {
+    data.fill(0);
+
+    let colors: &mut [[f32; 4]] = bytemuck::cast_slice_mut(data);
 
     let mut set_color_at = |x: u32, y: u32, color: Color| {
         let index = grid::to_index(x as u16, y as u16);

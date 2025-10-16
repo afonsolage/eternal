@@ -1,9 +1,7 @@
-use bevy::{
-    app::{App, Plugin},
-    dev_tools::fps_overlay::FpsOverlayPlugin,
-};
+use bevy::app::{App, Plugin};
 
 mod camera;
+mod diagnostics;
 mod inspector;
 mod ui_settings;
 mod ui_tile_map;
@@ -12,11 +10,12 @@ pub struct DebugPlugin;
 
 impl Plugin for DebugPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(FpsOverlayPlugin::default()).add_plugins((
+        app.add_plugins((
+            inspector::InspectorPlugin,
             ui_tile_map::UIDrawTileMap,
             ui_settings::UiDebugSettingsPlugin,
             camera::DebugCameraPlugin,
-            inspector::InspectorPlugin,
+            diagnostics::DiagnosticsPlugin,
         ));
     }
 }

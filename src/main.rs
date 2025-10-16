@@ -26,7 +26,7 @@ fn main() {
         .add_plugins((DefaultPlugins
             .set(ImagePlugin::default_nearest())
             .set(LogPlugin {
-                level: bevy::log::Level::ERROR,
+                level: bevy::log::Level::INFO,
                 filter: "wgpu=error,bevy=warn,eternal=trace".to_string(),
                 ..Default::default()
             })
@@ -37,6 +37,7 @@ fn main() {
                 }),
                 ..Default::default()
             }),))
+        .add_plugins(DebugPlugin)
         .add_plugins((
             EffectsPlugin,
             ConfigPlugin,
@@ -44,7 +45,6 @@ fn main() {
             PlayerPlugin,
             UiPlugin,
         ))
-        .add_plugins(DebugPlugin)
         .add_systems(Startup, setup)
         .run();
 }
