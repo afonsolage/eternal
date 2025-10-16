@@ -6,6 +6,7 @@ use crate::{
     config::tile::{TileConfig, TileConfigList},
     run_conditions::timeout,
     world::{
+        actions::ActionsPlugin,
         genesis::GenesisPlugin,
         grid::{GridId, GridIdChanged, GridVisible},
         physics::PhysicsPlugin,
@@ -14,6 +15,7 @@ use crate::{
     },
 };
 
+mod actions;
 pub mod genesis;
 pub mod grid;
 pub mod physics;
@@ -24,17 +26,22 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((MapRendererPlugin, PhysicsPlugin, GenesisPlugin))
-            .init_resource::<TileRegistry>()
-            .add_systems(Startup, setup)
-            .add_systems(
-                PreUpdate,
-                (
-                    process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
-                    update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
-                    trigger_grid_changed,
-                ),
-            );
+        app.add_plugins((
+            MapRendererPlugin,
+            PhysicsPlugin,
+            GenesisPlugin,
+            ActionsPlugin,
+        ))
+        .init_resource::<TileRegistry>()
+        .add_systems(Startup, setup)
+        .add_systems(
+            PreUpdate,
+            (
+                process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
+                update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
+                trigger_grid_changed,
+            ),
+        );
     }
 }
 

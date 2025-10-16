@@ -6,6 +6,7 @@ use crate::player::{
 };
 
 mod actions;
+pub use actions::PlayerActionHit;
 
 mod camera;
 pub use camera::PlayerCamera;

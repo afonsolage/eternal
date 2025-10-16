@@ -1,15 +1,11 @@
-#![allow(unused)]
-use std::ops::Deref;
-
 use bevy::prelude::*;
 
 use crate::effects::{impact::ImpactPlugin, pixel_perfect::PixelPerfectPlugin, swipe::SwipePlugin};
 
 mod impact;
-pub use impact::FxImpact;
 
 mod swipe;
-pub use swipe::FxSwipe;
+pub use {swipe::FxSwipe, swipe::FxSwipeHit};
 
 mod pixel_perfect;
 
@@ -44,7 +40,6 @@ enum LoopType {
 #[derive(Component)]
 struct FxAnimation {
     fps: f32,
-    first: usize,
     last: usize,
     elapsed: f32,
     loop_type: LoopType,
@@ -54,7 +49,6 @@ impl FxAnimation {
     fn once(fps: f32, first: usize, last: usize) -> Self {
         Self {
             fps,
-            first,
             last,
             elapsed: first as f32,
             loop_type: LoopType::None,
@@ -64,7 +58,6 @@ impl FxAnimation {
     fn ping_pong(fps: f32, first: usize, last: usize) -> Self {
         Self {
             fps,
-            first,
             last,
             elapsed: first as f32,
             loop_type: LoopType::PingPong,
@@ -74,7 +67,6 @@ impl FxAnimation {
     fn cycle(fps: f32, first: usize, last: usize, count: usize) -> Self {
         Self {
             fps,
-            first,
             last,
             elapsed: first as f32,
             loop_type: LoopType::Cicle(count),

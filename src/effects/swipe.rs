@@ -1,5 +1,4 @@
-use avian2d::prelude::{Collider, CollisionEventsEnabled, CollisionStart, Sensor};
-use bevy::prelude::*;
+use bevy::{prelude::*, ui_widgets::observe};
 
 use crate::effects::{
     FxAnimation,
@@ -17,6 +16,14 @@ impl Plugin for SwipePlugin {
 #[derive(Component)]
 pub struct FxSwipe;
 
+#[derive(EntityEvent)]
+pub struct FxSwipeHit {
+    #[event_target]
+    pub entity: Entity,
+    pub source: Entity,
+    pub target: Entity,
+}
+
 fn on_impact_add(
     add: On<Add, FxSwipe>,
     asset_server: Res<AssetServer>,
@@ -32,14 +39,18 @@ fn on_impact_add(
         None,
     ));
 
-    commands
-        .entity(add.entity)
-        .insert((
-            Sprite::from_atlas_image(texture, layout.into()),
-            FxAnimation::once(20.0, 0, 6),
-            PixelPerfectCollider,
-        ))
-        .observe(|collision: On<PixelPerfectCollision>| {
-            debug!("{collision:?}");
-        });
+    commands.entity(add.entity).insert((
+        Sprite::from_atlas_image(texture, layout.into()),
+        FxAnimation::once(20.0, 0, 6),
+        PixelPerfectCollider,
+        observe(on_impact_hit),
+    ));
+}
+
+fn on_impact_hit(collision: On<PixelPerfectCollision>, mut commands: Commands) {
+    commands.trigger(FxSwipeHit {
+        entity: collision.source,
+        source: collision.original_event_target(),
+        target: collision.target,
+    });
 }
