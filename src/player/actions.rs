@@ -1,8 +1,7 @@
-use avian2d::{
-    parry::query::RayCast,
-    prelude::{RayCaster, RayHits},
-};
+use avian2d::prelude::RayHits;
 use bevy::{prelude::*, ui_widgets::observe};
+
+const MAX_ACTION_DISTANCE: f32 = 20.0;
 
 use crate::{
     effects::{FxSwipe, FxSwipeHit},
@@ -39,8 +38,8 @@ fn on_player_action(
         .iter_sorted()
         .next()
         .map(|hit| hit.distance)
-        .unwrap_or(20.0)
-        .min(20.0);
+        .unwrap_or(MAX_ACTION_DISTANCE)
+        .min(MAX_ACTION_DISTANCE);
 
     commands.entity(entity).with_child((
         FxSwipe,
