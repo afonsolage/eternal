@@ -4,6 +4,7 @@ use bevy::{
 };
 
 mod camera;
+mod inspector;
 mod ui_settings;
 mod ui_tile_map;
 
@@ -15,6 +16,7 @@ impl Plugin for DebugPlugin {
             ui_tile_map::UIDrawTileMap,
             ui_settings::UiDebugSettingsPlugin,
             camera::DebugCameraPlugin,
+            inspector::InspectorPlugin,
         ));
     }
 }

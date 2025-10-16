@@ -1,8 +1,6 @@
 use bevy::log::LogPlugin;
 use bevy::prelude::*;
 use bevy::window::PresentMode;
-use bevy_egui::EguiPlugin;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
 
 use crate::ui::UiPlugin;
 use crate::world::grid;
@@ -39,7 +37,6 @@ fn main() {
                 }),
                 ..Default::default()
             }),))
-        .add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
         .add_plugins((
             EffectsPlugin,
             ConfigPlugin,
