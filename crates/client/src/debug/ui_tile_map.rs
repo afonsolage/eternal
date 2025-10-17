@@ -10,12 +10,10 @@ use bevy::{
     },
 };
 
-use crate::{
-    ui::window::{WindowConfig, window},
-    world::{
-        grid::{self, GridId, GridIdChanged, GridVisible, LayerIndex},
-        tile::{self, TileRegistry},
-    },
+use crate::ui::window::{WindowConfig, window};
+use eternal_grid::{
+    grid::{self, GridId, GridIdChanged, GridVisible, LayerIndex},
+    tile::{self, TileRegistry},
 };
 pub struct UIDrawTileMap;
 
@@ -129,7 +127,7 @@ fn on_grid_id_changed(
 
     let GridIdChanged(layer, positions) = &*changed;
 
-    if !matches!(layer, LayerIndex::FLOOR) {
+    if !matches!(layer, LayerIndex::Floor) {
         return;
     }
 
@@ -137,7 +135,7 @@ fn on_grid_id_changed(
         return;
     };
 
-    let floor = &grid[LayerIndex::FLOOR];
+    let floor = &grid[LayerIndex::Floor];
     for &U16Vec2 { x, y } in positions {
         let tile_id = floor.get(x, y);
 
@@ -170,7 +168,7 @@ fn update_whole_map(
 
     let colors: &mut [[f32; 4]] = bytemuck::cast_slice_mut(data);
 
-    let floor = &grid[LayerIndex::FLOOR];
+    let floor = &grid[LayerIndex::Floor];
     colors
         .iter_mut()
         .enumerate()

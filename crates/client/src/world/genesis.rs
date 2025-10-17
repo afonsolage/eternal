@@ -1,11 +1,9 @@
 use bevy::prelude::*;
 
-use crate::{
-    noise::Noise,
-    world::{
-        grid::{self, Grid, GridElevation, GridId, Layer, LayerIndex},
-        tile::{TileElevation, TileId},
-    },
+use crate::noise::Noise;
+use eternal_grid::{
+    grid::{self, Grid, GridElevation, GridId, Layer, LayerIndex},
+    tile::{TileElevation, TileId},
 };
 
 pub struct GenesisPlugin;
@@ -19,8 +17,8 @@ impl Plugin for GenesisPlugin {
 pub fn add_grids(add: On<Add, GridId>, mut ids: Single<&mut GridId>, mut commands: Commands) {
     let elevations = generate_elevation();
 
-    collapse_floor_layer(&mut ids[LayerIndex::FLOOR], &elevations);
-    collapse_wall_layer(&mut ids[LayerIndex::WALL], &elevations);
+    collapse_floor_layer(&mut ids[LayerIndex::Floor], &elevations);
+    collapse_wall_layer(&mut ids[LayerIndex::Wall], &elevations);
 
     debug!("Generated ids!");
 

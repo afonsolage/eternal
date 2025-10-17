@@ -1,7 +1,8 @@
 use avian2d::prelude::*;
 use bevy::{platform::collections::HashMap, prelude::*};
 
-use crate::{effects::FxIndexChanged, world::tile};
+use crate::effects::FxIndexChanged;
+use eternal_grid::tile;
 
 pub struct PixelPerfectPlugin;
 

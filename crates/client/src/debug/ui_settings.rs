@@ -18,14 +18,14 @@ use crate::{
         controls::spacer,
         window::{WindowConfig, window},
     },
-    world::{
-        grid::{
-            self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex,
-            grid_id_changed,
-        },
-        renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
-        tile::{self, TileRegistry},
+    world::renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
+};
+use eternal_grid::{
+    grid::{
+        self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex,
+        grid_id_changed,
     },
+    tile::{self, TileRegistry},
 };
 
 const WIREFRAME_HEIGHT: f32 = 100.3;
@@ -282,9 +282,9 @@ fn format_tile_info(index: usize, ids: &GridId, elevations: &GridElevation) -> S
         u16::MAX => -1,
     };
 
-    let floor = id_or_space(LayerIndex::FLOOR);
-    let wall = id_or_space(LayerIndex::WALL);
-    let roof = id_or_space(LayerIndex::ROOF);
+    let floor = id_or_space(LayerIndex::Floor);
+    let wall = id_or_space(LayerIndex::Wall);
+    let roof = id_or_space(LayerIndex::Roof);
 
     format!(
         "{floor:03},{wall:03},{roof:03}\nele: {:.02}",
@@ -492,7 +492,7 @@ fn draw_grid_tile_ids(
 
     debug!("Drawing grid tile ids");
 
-    let layer = &grid[LayerIndex::FLOOR];
+    let layer = &grid[LayerIndex::Floor];
 
     let mut positions = vec![];
     let mut colors = vec![];

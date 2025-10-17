@@ -2546,10 +2546,19 @@ dependencies = [
  "bevy-inspector-egui",
  "bevy_egui",
  "bytemuck",
+ "eternal_grid",
  "noise",
  "ron 0.11.0",
  "serde",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "eternal_grid"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "serde",
 ]
 
 [[package]]

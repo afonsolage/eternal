@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use eternal_grid::grid;
 
 use crate::{
     config::ConfigPlugin,
@@ -6,7 +7,7 @@ use crate::{
     effects::EffectsPlugin,
     player::{Player, PlayerPlugin},
     ui::UiPlugin,
-    world::{WorldPlugin, grid},
+    world::WorldPlugin,
 };
 
 mod config;

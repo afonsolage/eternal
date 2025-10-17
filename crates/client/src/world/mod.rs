@@ -8,19 +8,17 @@ use crate::{
     world::{
         actions::ActionsPlugin,
         genesis::GenesisPlugin,
-        grid::{GridId, GridIdChanged, GridVisible, LAYERS},
         physics::PhysicsPlugin,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
-        tile::{TileId, TileInfo, TileRegistry, TileVisible},
     },
 };
+use eternal_grid::grid::{self, GridId, GridIdChanged, GridVisible, LAYERS};
+use eternal_grid::tile::{self, TileId, TileInfo, TileRegistry, TileVisible};
 
 mod actions;
 pub mod genesis;
-pub mod grid;
 pub mod physics;
 pub mod renderer;
-pub mod tile;
 
 pub struct WorldPlugin;
 

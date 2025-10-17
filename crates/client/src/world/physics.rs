@@ -1,7 +1,7 @@
 use avian2d::prelude::*;
 use bevy::prelude::*;
 
-use crate::world::grid::{GridId, LayerIndex};
+use eternal_grid::grid::{GridId, LayerIndex};
 
 pub struct PhysicsPlugin;
 
@@ -35,7 +35,7 @@ pub fn update_wall_collider(
 ) {
     let (entity, grid) = singleton.into_inner();
 
-    let walls = grid[LayerIndex::WALL]
+    let walls = grid[LayerIndex::Wall]
         .positions()
         .filter_map(|(x, y, &id)| {
             if id.is_none() {

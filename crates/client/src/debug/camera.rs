@@ -3,12 +3,10 @@ use bevy::{
     prelude::*,
 };
 
-use crate::{
-    player::PlayerCamera,
-    world::{
-        grid::{self, GridId, LayerIndex},
-        tile::{self, TileId},
-    },
+use crate::player::PlayerCamera;
+use eternal_grid::{
+    grid::{self, GridId, LayerIndex},
+    tile::{self, TileId},
 };
 
 pub struct DebugCameraPlugin;
@@ -60,8 +58,8 @@ fn on_map_click(release: On<Pointer<Release>>, mut grid: Single<&mut GridId>) {
         return;
     }
 
-    let current = *grid[LayerIndex::WALL].get(tile_pos.x, tile_pos.y);
-    grid[LayerIndex::WALL].set(tile_pos.x, tile_pos.y, TileId::default());
+    let current = *grid[LayerIndex::Wall].get(tile_pos.x, tile_pos.y);
+    grid[LayerIndex::Wall].set(tile_pos.x, tile_pos.y, TileId::default());
 
     debug!("Changing {current:?} to none at {tile_pos}");
 }

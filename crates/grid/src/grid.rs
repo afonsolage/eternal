@@ -5,7 +5,7 @@ use std::sync::{
 
 use bevy::{math::U16Vec2, prelude::*};
 
-use crate::world::tile::{self, TileElevation, TileId, TileVisible};
+use crate::tile::{self, TileElevation, TileId, TileVisible};
 
 pub const DIMS: UVec2 = UVec2::new(256, 256);
 pub const LAYER_SIZE: usize = (DIMS.x * DIMS.y) as usize;
@@ -25,21 +25,21 @@ pub fn grid_id_changed(q: Query<(), Changed<GridId>>) -> bool {
 #[repr(u32)]
 pub enum LayerIndex {
     #[default]
-    FLOOR,
-    WALL,
-    ROOF,
+    Floor,
+    Wall,
+    Roof,
 }
 
 pub const LAYERS_COUNT: usize = 3;
 pub const LAYERS: [LayerIndex; LAYERS_COUNT] =
-    [LayerIndex::FLOOR, LayerIndex::WALL, LayerIndex::ROOF];
+    [LayerIndex::Floor, LayerIndex::Wall, LayerIndex::Roof];
 
 impl LayerIndex {
     pub fn height(&self) -> f32 {
         match self {
-            LayerIndex::FLOOR => -1.00,
-            LayerIndex::WALL => 0.00,
-            LayerIndex::ROOF => 1.00,
+            LayerIndex::Floor => -1.00,
+            LayerIndex::Wall => 0.00,
+            LayerIndex::Roof => 1.00,
         }
     }
 

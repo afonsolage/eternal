@@ -5,6 +5,8 @@ edition = "2024"
 default-run = "client"
 
 [dependencies]
+eternal_grid.workspace = true
+
 bevy.workspace = true
 avian2d.workspace = true
 
@@ -19,6 +21,9 @@ bevy_egui.workspace = true
 bevy-inspector-egui.workspace = true
 
 noise = "0.9"
+
+[lints]
+workspace = true
 
 [[bin]]
 name = "client"

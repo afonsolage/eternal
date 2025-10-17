@@ -32,7 +32,7 @@ fn on_wall_hit_by_player(hit: On<PlayerActionHit>, collisions: Collisions, grid:
                     .iter()
                     .map(|p| p.point.as_u16vec2() / tile::SIZE)
                     .for_each(|grid_pos| {
-                        grid[LayerIndex::WALL].queue(grid_pos.x, grid_pos.y, TileId::default());
+                        grid[LayerIndex::Wall].queue(grid_pos.x, grid_pos.y, TileId::default());
                     });
             });
         });

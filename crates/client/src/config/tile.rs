@@ -2,10 +2,8 @@ use bevy::{asset::AssetLoader, prelude::*};
 
 use serde::Deserialize;
 
-use crate::{
-    config::{ConfigAssetLoaderError, color::HexColor},
-    world::tile::{BlendTech, TileKind},
-};
+use crate::config::{ConfigAssetLoaderError, color::HexColor};
+use eternal_grid::tile::{BlendTech, TileKind};
 
 pub struct ConfigTilePlugin;
 
