@@ -24,10 +24,6 @@ noise = "0.9"
 name = "client"
 path = "bin/main.rs"
 
-[[bin]]
-name = "atlas_editor"
-path = "bin/atlas_editor.rs"
-
 [features]
 default = ["dev", "experimental"]
 dev = [

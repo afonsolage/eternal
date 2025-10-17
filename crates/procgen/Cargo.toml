@@ -6,6 +6,10 @@ edition = "2024"
 [dependencies]
 bevy.workspace = true
 
+[dev-dependencies]
+bevy_egui.workspace = true
+bevy-inspector-egui.workspace = true
+
 [[example]]
 name = "atlas"
 path = "examples/atlas.rs"
