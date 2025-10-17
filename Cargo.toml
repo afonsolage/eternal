@@ -5,12 +5,12 @@ edition = "2024"
 
 [workspace]
 members = ["crates/*"]
-default-members = ["crates/client"]
+default-members = ["crates/client", "crates/procgen"]
 
 [workspace.dependencies]
 eternal_procgen = { path = "crates/procgen" }
 
-bevy = { version = "0.17", default-features = false  }
+bevy = { version = "0.17"  }
 avian2d = { version = "0.4" }
 
 bytemuck = "1.23.2"

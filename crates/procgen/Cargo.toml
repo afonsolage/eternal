@@ -4,3 +4,21 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bevy.workspace = true
+
+[[example]]
+name = "atlas"
+path = "examples/atlas.rs"
+
+[features]
+default = ["dev", "experimental"]
+dev = [
+    "bevy/dynamic_linking",
+    "bevy/track_location",
+    "bevy/bevy_dev_tools",
+    "bevy/debug",
+    "bevy/file_watcher",
+]
+experimental = [
+    "bevy/experimental_bevy_feathers",
+]
