@@ -3,9 +3,14 @@ name = "eternal"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-bevy = { version = "0.17", default-features = false  }
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/client"]
 
+[workspace.dependencies]
+eternal_procgen = { path = "crates/procgen" }
+
+bevy = { version = "0.17", default-features = false  }
 avian2d = { version = "0.4" }
 
 bytemuck = "1.23.2"
@@ -17,12 +22,11 @@ serde = { version = "1", default-features = false, features = ["derive"] }
 bevy_egui = { version = "0.37", default-features = false }
 bevy-inspector-egui = { version = "0.34" }
 
-noise = "0.9"
 
 [profile.dev.package."*"]
 opt-level = 3
 
-[lints.clippy]
+[workspace.lints.clippy]
 doc_markdown = "warn"
 manual_let_else = "warn"
 match_same_arms = "warn"
@@ -44,123 +48,6 @@ too_long_first_doc_paragraph = "allow"
 allow_attributes = "warn"
 allow_attributes_without_reason = "warn"
 
-[features]
-default = ["2d", "dev", "experimental"]
-dev = [
-    "bevy/dynamic_linking",
-    "bevy/track_location",
-    "bevy_dev",
-]
-experimental = [
-    "bevy/experimental_bevy_feathers",
-]
-
-# This was copied from cargo.toml on main. 
-# REMOVE THESE WHEN Bevy 0.18 lands
-
-# PROFILE: The default 2D Bevy experience. This includes the core Bevy framework, 2D functionality, Bevy UI, scenes, audio, and picking.
-2d = [
-  "default_app",
-  "default_platform",
-  "2d_api",
-  "2d_bevy_render",
-  "ui",
-  "scene",
-    #"audio",
-  "picking",
-]
-
-# PROFILE: The default Bevy UI experience.  This includes the core Bevy framework, Bevy UI, scenes, audio, and picking.
-ui = [
-  "default_app",
-  "default_platform",
-  "ui_api",
-  "ui_bevy_render",
-  "scene",
-    #"audio",
-  "picking",
-]
-
-# COLLECTION: Enable this feature during development to improve the development experience. This adds features like asset hot-reloading and debugging tools. This should not be enabled for published apps!
-bevy_dev = [
-  "bevy/debug",          # TODO: rename this to something more specific ... this is a "debug ECS names" feature
-  "bevy/bevy_dev_tools",
-  "bevy/file_watcher",
-]
-
-# COLLECTION: Features used to build audio Bevy apps.
-audio = ["bevy/bevy_audio", "bevy/vorbis"]
-
-# COLLECTION: Features used to compose Bevy scenes.
-scene = ["bevy/bevy_scene"]
-
-# COLLECTION: Enables picking functionality
-picking = ["bevy/bevy_picking", "bevy/bevy_mesh_picking_backend", "bevy/bevy_sprite_picking_backend", "bevy/bevy_ui_picking_backend"]
-
-# COLLECTION: The core pieces that most apps need. This serves as a baseline feature set for other higher level feature collections (such as "2d" and "3d"). It is also useful as a baseline feature set for scenarios like headless apps that require no rendering (ex: command line tools, servers, etc).
-default_app = [
-  "bevy/async_executor",
-  "bevy/bevy_asset",
-  "bevy/bevy_input_focus",
-  "bevy/bevy_log",
-  "bevy/bevy_state",
-  "bevy/bevy_window",
-  "bevy/custom_cursor",
-  "bevy/reflect_auto_register",
-]
-
-# COLLECTION: These are platform support features, such as OS support/features, windowing and input backends, etc.
-default_platform = [
-  "bevy/std",
-    #"bevy/android-game-activity",
-    #"bevy/android_shared_stdcxx",
-  "bevy/bevy_gilrs",
-  "bevy/bevy_winit",
-  "bevy/default_font",
-  "bevy/multi_threaded",
-    #"bevy/webgl2",
-  "bevy/x11",
-  "bevy/wayland",
-  "bevy/sysinfo_plugin",
-]
-
-# COLLECTION: Default scene definition features. Note that this does not include an actual renderer, such as bevy_render (Bevy's default render backend).
-common_api = [
-  "bevy/bevy_animation",
-  "bevy/bevy_camera",
-  "bevy/bevy_color",
-  "bevy/bevy_gizmos",
-  "bevy/bevy_image",
-  "bevy/bevy_mesh",
-  "bevy/bevy_shader",
-  "bevy/bevy_text",
-    #"bevy/hdr",
-  "bevy/png",
-]
-
-# COLLECTION: Features used to build 2D Bevy apps (does not include a render backend). You generally don't need to worry about this unless you are using a custom renderer.
-2d_api = ["common_api", "bevy/bevy_sprite"]
-
-# COLLECTION: Bevy's built-in 2D renderer, built on top of `bevy_render` 
-2d_bevy_render = [
-  "2d_api",
-  "bevy/bevy_render",
-  "bevy/bevy_core_pipeline",
-  "bevy/bevy_post_process",
-  "bevy/bevy_sprite_render",
-    #"bevy/bevy_gizmos_render",
-]
-
-# COLLECTION: Features used to build UI Bevy apps (does not include a render backend). You generally don't need to worry about this unless you are using a custom renderer.
-ui_api = ["default_app", "common_api", "bevy/bevy_ui"]
-
-# COLLECTION: Bevy's built-in UI renderer, built on top of `bevy_render` 
-ui_bevy_render = [
-  "ui_api",
-  "bevy/bevy_render",
-  "bevy/bevy_core_pipeline",
-  "bevy/bevy_ui_render",
-]
-
-
-
+[[example]]
+name = "procgen"
+path = "examples/procgen.rs"
