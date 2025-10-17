@@ -22,7 +22,11 @@ noise = "0.9"
 
 [[bin]]
 name = "client"
-path = "src/main.rs"
+path = "bin/main.rs"
+
+[[bin]]
+name = "atlas_editor"
+path = "bin/atlas_editor.rs"
 
 [features]
 default = ["2d", "dev", "experimental"]
