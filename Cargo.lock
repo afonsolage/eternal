@@ -2568,6 +2568,9 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
+ "eternal_grid",
+ "eternal_procgen",
+ "noise",
 ]
 
 [[package]]

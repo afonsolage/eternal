@@ -13,7 +13,7 @@ use bevy::{
 
 use crate::{
     effects::FxFpsMultiplier,
-    run_conditions::timeout,
+    run_conditions::{component_changed, timeout},
     ui::{
         controls::spacer,
         window::{WindowConfig, window},
@@ -21,10 +21,7 @@ use crate::{
     world::renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
 };
 use eternal_grid::{
-    grid::{
-        self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex,
-        grid_id_changed,
-    },
+    grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
     tile::{self, TileRegistry},
 };
 
@@ -49,7 +46,7 @@ impl Plugin for UiDebugSettingsPlugin {
                 draw_grid_tile_ids.run_if(
                     resource_changed::<UiDebugSettings>
                         .or(resource_changed::<TileRegistry>)
-                        .or(grid_id_changed),
+                        .or(component_changed::<GridId>),
                 ),
                 draw_grid_info.run_if(timeout(Duration::from_millis(100))),
             ),

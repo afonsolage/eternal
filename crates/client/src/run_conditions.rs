@@ -13,3 +13,7 @@ pub fn timeout(duration: Duration) -> impl FnMut(Local<f32>, Res<Time>) -> bool 
         }
     }
 }
+
+pub fn component_changed<T: Component>(q: Query<(), Changed<T>>) -> bool {
+    !q.is_empty()
+}

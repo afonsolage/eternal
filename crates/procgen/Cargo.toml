@@ -4,9 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eternal_grid.workspace = true
+
 bevy.workspace = true
 
+noise = "0.9"
+
 [dev-dependencies]
+eternal_grid.workspace = true
+eternal_procgen.workspace = true
+
 bevy_egui.workspace = true
 bevy-inspector-egui.workspace = true
 
