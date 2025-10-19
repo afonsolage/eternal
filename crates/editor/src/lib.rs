@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use eternal_procgen::noise::NoisePlugin;
+use eternal_procgen::ProcGenPlugin;
 
 use crate::{atlas_editor::AtlasEditorPlugin, map_editor::MapEditorPlugin};
 
@@ -15,7 +15,7 @@ impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
             .add_plugins((
-                NoisePlugin,
+                ProcGenPlugin,
                 camera::CameraPlugin,
                 AtlasEditorPlugin,
                 MapEditorPlugin,

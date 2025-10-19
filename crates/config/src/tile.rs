@@ -1,8 +1,7 @@
 use bevy::{asset::AssetLoader, prelude::*};
 
-use serde::Deserialize;
-
 use crate::{ConfigAssetLoaderError, color::HexColor};
+use serde::Deserialize;
 
 pub struct ConfigTilePlugin;
 

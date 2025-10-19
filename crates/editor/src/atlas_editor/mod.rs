@@ -19,7 +19,7 @@ impl Plugin for AtlasEditorPlugin {
             .add_systems(
                 Update,
                 (
-                    update_atlas_image.run_if(resource_changed::<Atlas>),
+                    update_atlas_image.run_if(resource_exists_and_changed::<Atlas>),
                     update_atlas.run_if(on_message::<NoiseChanged>),
                     draw_gizmos,
                 )

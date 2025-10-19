@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use thiserror::Error;
 
 pub mod color;
+pub mod loader;
 pub mod noise;
 pub mod tile;
 use tile::ConfigTilePlugin;
@@ -17,11 +18,13 @@ impl Plugin for ConfigPlugin {
 }
 
 #[derive(Debug, Error)]
-enum ConfigAssetLoaderError {
+pub enum ConfigAssetLoaderError {
     /// An [IO](std::io) Error
     #[error("Could not load asset: {0}")]
     Io(#[from] std::io::Error),
     /// A [RON](ron) Error
     #[error("Could not parse RON: {0}")]
     RonSpannedError(#[from] ron::error::SpannedError),
+    #[error("Failed to read asset: {0}")]
+    ReadAssetError(#[from] bevy::asset::ReadAssetBytesError),
 }

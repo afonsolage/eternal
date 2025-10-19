@@ -1,0 +1,76 @@
+use std::marker::PhantomData;
+
+use bevy::{
+    asset::{AssetLoader, AssetPath, LoadContext},
+    prelude::*,
+};
+
+use crate::ConfigAssetLoaderError;
+
+#[derive(Deref, DerefMut)]
+pub struct ConfigParserContext<'a, 'ctx>(&'a mut LoadContext<'ctx>);
+
+impl<'a, 'ctx> ConfigParserContext<'a, 'ctx> {
+    pub fn deserialie_ron<T>(&self, bytes: &[u8]) -> Result<T, ConfigAssetLoaderError>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        use ron::extensions::Extensions;
+        let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+
+        Ok(opts.from_bytes(bytes)?)
+    }
+
+    pub async fn deserialize_file<T>(
+        &mut self,
+        path: impl Into<AssetPath<'_>>,
+    ) -> Result<T, ConfigAssetLoaderError>
+    where
+        T: for<'de> serde::Deserialize<'de>,
+    {
+        let bytes = self.0.read_asset_bytes(path).await?;
+        self.deserialie_ron(&bytes)
+    }
+}
+
+pub trait ConfigParser: Asset {
+    type Config: for<'de> serde::Deserialize<'de>;
+
+    fn from_config(
+        config: Self::Config,
+        load_context: ConfigParserContext<'_, '_>,
+    ) -> impl std::future::Future<Output = Result<Self, ConfigAssetLoaderError>> + Send
+    where
+        Self: Sized;
+}
+
+#[derive(Default)]
+pub struct ConfigAssetLoader<T>(PhantomData<T>);
+
+impl<T> AssetLoader for ConfigAssetLoader<T>
+where
+    T: ConfigParser,
+{
+    type Asset = T;
+
+    type Settings = ();
+
+    type Error = ConfigAssetLoaderError;
+
+    async fn load(
+        &self,
+        reader: &mut dyn bevy::asset::io::Reader,
+        _settings: &Self::Settings,
+        load_context: &mut bevy::asset::LoadContext<'_>,
+    ) -> Result<Self::Asset, Self::Error> {
+        let mut bytes = Vec::new();
+        reader.read_to_end(&mut bytes).await?;
+
+        let context = ConfigParserContext(load_context);
+
+        let config: T::Config = context.deserialie_ron(&bytes)?;
+        let asset = T::from_config(config, context).await?;
+
+        Ok(asset)
+    }
+}

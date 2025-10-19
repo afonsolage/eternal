@@ -1,9 +1,24 @@
-use bevy::log::debug;
+use bevy::prelude::*;
 
-use crate::{atlas::Atlas, noise::Noises};
+use crate::{
+    atlas::Atlas,
+    biome::BiomePlugin,
+    map::Map,
+    noise::{NoisePlugin, Noises},
+};
 
 pub mod atlas;
+pub mod biome;
+pub mod map;
 pub mod noise;
+
+pub struct ProcGenPlugin;
+
+impl Plugin for ProcGenPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((NoisePlugin, BiomePlugin));
+    }
+}
 
 pub fn generate_atlas(noises: &Noises) -> Atlas {
     debug!("Generating atlas!");
@@ -20,4 +35,21 @@ pub fn generate_atlas(noises: &Noises) -> Atlas {
     debug!("Atlas generated!");
 
     atlas
+}
+
+pub fn generate_map(noises: &Noises) -> Map {
+    debug!("Generating map!");
+
+    let mut map = Map::new();
+    let noise_fn = noises.map();
+
+    for y in 0..map::MAP_AXIS_SIZE as u16 {
+        for x in 0..map::MAP_AXIS_SIZE as u16 {
+            map.elevation[map::to_index(x, y)] = noise_fn.get([x as f64, y as f64]) as f32;
+        }
+    }
+
+    debug!("Map generated!");
+
+    map
 }

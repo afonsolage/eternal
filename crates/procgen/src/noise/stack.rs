@@ -115,6 +115,7 @@ pub enum NoiseFnSpec {
         source: String,
         exponent: f64,
     },
+    Alias(String),
 }
 
 impl NoiseFnSpec {
@@ -132,7 +133,8 @@ impl NoiseFnSpec {
             | NoiseFnSpec::Turbulence { source, .. }
             | NoiseFnSpec::Terrace { source, .. }
             | NoiseFnSpec::Exponent { source, .. }
-            | NoiseFnSpec::Clamp { source, .. } => {
+            | NoiseFnSpec::Clamp { source, .. }
+            | NoiseFnSpec::Alias(source) => {
                 vec![source]
             }
             // Two sources
@@ -291,6 +293,8 @@ impl NoiseStack {
     // }
 
     fn build(&self, name: &str) -> Result<BoxedNoiseFn, NoiseStackError> {
+        // TODO: Add a caching
+
         let Some(spec) = self.specs.get(name) else {
             return Err(NoiseStackError::SpecNotFound(name.to_string()));
         };
@@ -449,6 +453,7 @@ impl NoiseStack {
                 let blend = Blend::new(source_1, source_2, control);
                 Box::new(blend)
             }
+            NoiseFnSpec::Alias(source) => self.build(source)?,
         };
 
         Ok(noise_fn)

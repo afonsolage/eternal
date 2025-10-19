@@ -1,0 +1,48 @@
+(
+    specs: [
+        ( 
+            "base_elevation",
+            Fbm( 
+                seed: 42,
+                frequency: 0.025,
+                octaves: 4,
+                lacunarity: 2.0,
+                persistence: 0.5,
+            ),
+        ),
+        (
+            "mountain_ridges",
+            Billow(
+                seed: 42,
+                frequency: 0.012,
+                octaves: 5,
+                lacunarity: 2.0,
+                persistence: 0.5,
+            ),
+        ),
+        (
+            "base_with_mountain",
+            Multiply(
+                source_1: "base_elevation",
+                source_2: "mountain_ridges",
+            ),
+        ),
+        (
+            "clamped",
+            Terrace(
+                source: "base_with_mountain", 
+                control_points: [
+                    -1.0,  
+                    0.2,  
+                    0.4,  
+                    0.65,  
+                    1.0,  
+                ],
+            ),
+        ),
+        (
+            "main",
+            Alias("clamped"),
+        ),
+    ]
+)
