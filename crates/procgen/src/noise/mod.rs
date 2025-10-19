@@ -39,8 +39,12 @@ impl<'w> Noises<'w> {
     pub fn atlas(&self) -> BoxedNoiseFn {
         self.assets
             .get(self.atlas.0.id())
-            .expect("AtlasNoise should always exists")
+            .expect("atlas functon should be called only when it it is ready (is_ready() == true)")
             .main()
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.assets.get(self.atlas.0.id()).is_some()
     }
 }
 
