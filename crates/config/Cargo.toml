@@ -1,23 +1,22 @@
 [package]
-name = "eternal_grid"
+name = "eternal_config"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-eternal_config.workspace = true
 
 bevy.workspace = true
+thiserror.workspace = true
+
+ron.workspace = true
 serde.workspace = true
 
 [features]
-default = ["dev", "experimental"]
+default = ["dev"]
 dev = [
     "bevy/dynamic_linking",
     "bevy/track_location",
     "bevy/bevy_dev_tools",
     "bevy/debug",
     "bevy/file_watcher",
-]
-experimental = [
-    "bevy/experimental_bevy_feathers",
 ]

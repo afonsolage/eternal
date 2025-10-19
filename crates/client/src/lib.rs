@@ -1,8 +1,9 @@
 use bevy::prelude::*;
+
+use eternal_config::ConfigPlugin;
 use eternal_grid::grid;
 
 use crate::{
-    config::ConfigPlugin,
     debug::DebugPlugin,
     effects::EffectsPlugin,
     player::{Player, PlayerPlugin},
@@ -10,7 +11,6 @@ use crate::{
     world::WorldPlugin,
 };
 
-mod config;
 mod debug;
 mod effects;
 mod noise;

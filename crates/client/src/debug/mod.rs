@@ -1,6 +1,6 @@
 use bevy::app::{App, Plugin};
 
-mod camera;
+pub mod camera;
 mod diagnostics;
 mod inspector;
 mod ui_settings;

@@ -1,9 +1,8 @@
 use std::time::Duration;
 
-use bevy::{math::U16Vec2, platform::collections::HashMap, prelude::*};
+use bevy::{math::U16Vec2, prelude::*};
 
 use crate::{
-    config::tile::{TileConfig, TileConfigList},
     run_conditions::timeout,
     world::{
         actions::ActionsPlugin,
@@ -12,8 +11,11 @@ use crate::{
         renderer::{MapRendererPlugin, tilemap::Tilemap},
     },
 };
-use eternal_grid::grid::{self, GridId, GridIdChanged, GridVisible, LAYERS};
-use eternal_grid::tile::{self, TileId, TileInfo, TileRegistry, TileVisible};
+use eternal_grid::tile::{self, TileVisible};
+use eternal_grid::{
+    ecs::GridPlugin,
+    grid::{self, GridId, GridIdChanged, GridVisible, LAYERS},
+};
 
 mod actions;
 pub mod genesis;
@@ -24,22 +26,21 @@ pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((
-            MapRendererPlugin,
-            PhysicsPlugin,
-            GenesisPlugin,
-            ActionsPlugin,
-        ))
-        .init_resource::<TileRegistry>()
-        .add_systems(Startup, setup)
-        .add_systems(
-            PreUpdate,
-            (
-                process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
-                update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
-                update_tile_ids.run_if(timeout(Duration::from_millis(100))),
-            ),
-        );
+        app.add_plugins(GridPlugin)
+            .add_plugins((
+                MapRendererPlugin,
+                PhysicsPlugin,
+                GenesisPlugin,
+                ActionsPlugin,
+            ))
+            .add_systems(Startup, setup)
+            .add_systems(
+                PreUpdate,
+                (
+                    update_tile_visibility.run_if(timeout(Duration::from_millis(100))),
+                    update_tile_ids.run_if(timeout(Duration::from_millis(100))),
+                ),
+            );
     }
 }
 
@@ -49,59 +50,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         atlas_dims: UVec2::new(4, 4),
     };
 
-    commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
     commands.spawn((Name::new("Map"), tilemap, GridId::new(), GridVisible::new()));
-}
-
-#[derive(Resource)]
-#[expect(unused, reason = "The handle needs to be hold somewhere")]
-struct TileInfoHandle(Handle<TileConfigList>);
-
-fn process_tile_info_list(
-    mut msg_reader: MessageReader<AssetEvent<TileConfigList>>,
-    assets: Res<Assets<TileConfigList>>,
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
-    for msg in msg_reader.read() {
-        debug!("Event: {msg:?}");
-        if let &AssetEvent::Added { id } | &AssetEvent::Modified { id } = msg
-            && let Some(tile_config_list) = assets.get(id)
-        {
-            let map = tile_config_list
-                .0
-                .iter()
-                .enumerate()
-                .map(|(idx, config)| {
-                    let TileConfig {
-                        name,
-                        kind,
-                        atlas,
-                        atlas_index,
-                        map_color,
-                        blend_tech,
-                    } = config;
-
-                    let info = TileInfo {
-                        name: name.clone().into(),
-                        kind: *kind,
-                        atlas: asset_server.load(atlas),
-                        atlas_index: *atlas_index,
-                        map_color: map_color.0,
-                        blend_tech: blend_tech.unwrap_or_default(),
-                    };
-
-                    let id = TileId::new(idx as u16);
-                    (id, info)
-                })
-                .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
-                .collect::<HashMap<_, _>>();
-
-            debug!("Loaded tile info list: {map:?}");
-
-            commands.insert_resource(TileRegistry::new(map));
-        }
-    }
 }
 
 fn update_tile_visibility(

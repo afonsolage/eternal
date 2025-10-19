@@ -6,6 +6,7 @@ default-run = "client"
 
 [dependencies]
 eternal_grid.workspace = true
+eternal_config.workspace = true
 
 bevy.workspace = true
 avian2d.workspace = true

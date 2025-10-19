@@ -1,16 +1,23 @@
-use crate::{atlas::Atlas, noise::Noise};
+use bevy::log::debug;
+
+use crate::{atlas::Atlas, noise::Noises};
 
 pub mod atlas;
-mod noise;
+pub mod noise;
 
-pub fn generate_atlas() -> Atlas {
+pub fn generate_atlas(noises: &Noises) -> Atlas {
+    debug!("Generating atlas!");
+
     let mut atlas = Atlas::new();
-    let noise = Noise::new(42);
-    for y in 0..atlas::DIMS.y {
-        for x in 0..atlas::DIMS.x {
-            atlas.elevation[atlas::to_index(x, y)] = noise.get(x as f32, y as f32);
+    let noise_fn = noises.atlas();
+
+    for y in 0..atlas::ATLAS_AXIS_SIZE as u16 {
+        for x in 0..atlas::ATLAS_AXIS_SIZE as u16 {
+            atlas.elevation[atlas::to_index(x, y)] = noise_fn.get([x as f64, y as f64]) as f32;
         }
     }
+
+    debug!("Atlas generated!");
 
     atlas
 }

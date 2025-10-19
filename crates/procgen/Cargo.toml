@@ -4,9 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+eternal_config.workspace = true
 eternal_grid.workspace = true
 
 bevy.workspace = true
+
+thiserror.workspace = true
+serde.workspace = true
+ron.workspace = true
 
 noise = "0.9"
 

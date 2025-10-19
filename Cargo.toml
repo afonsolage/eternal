@@ -8,8 +8,9 @@ members = ["crates/*"]
 default-members = ["crates/client", "crates/procgen"]
 
 [workspace.dependencies]
-eternal_procgen = { path = "crates/procgen" }
+eternal_config = { path = "crates/config" }
 eternal_grid = { path = "crates/grid" }
+eternal_procgen = { path = "crates/procgen" }
 
 bevy = { version = "0.17"  }
 avian2d = { version = "0.4" }

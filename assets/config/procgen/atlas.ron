@@ -1,0 +1,31 @@
+(
+    specs: [
+        ( 
+            "continent",
+            Fbm( 
+                seed: 42,
+                frequency: 0.05,
+                octaves: 3,
+                lacunarity: 2.0,
+                persistence: 0.5,
+            ),
+        ),
+        (
+            "ridge",
+            Billow(
+                seed: 42,
+                frequency: 0.01,
+                octaves: 4,
+                lacunarity: 2.142578125,
+                persistence: 0.5,
+            ),
+        ),
+        (
+            "main",
+            Multiply(
+                source_1: "ridge",
+                source_2: "continent",
+            ),
+        ),
+    ]
+)

@@ -2,8 +2,7 @@ use bevy::{asset::AssetLoader, prelude::*};
 
 use serde::Deserialize;
 
-use crate::config::{ConfigAssetLoaderError, color::HexColor};
-use eternal_grid::tile::{BlendTech, TileKind};
+use crate::{ConfigAssetLoaderError, color::HexColor};
 
 pub struct ConfigTilePlugin;
 
@@ -12,6 +11,20 @@ impl Plugin for ConfigTilePlugin {
         app.init_asset::<TileConfigList>()
             .init_asset_loader::<TileConfigListAssetLoader>();
     }
+}
+
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
+pub enum TileKind {
+    #[default]
+    Terrain,
+    Wall,
+}
+
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
+pub enum BlendTech {
+    #[default]
+    None,
+    Weight(u16),
 }
 
 #[derive(Debug, Deserialize, Clone)]
