@@ -5,12 +5,13 @@ edition = "2024"
 
 [workspace]
 members = ["crates/*"]
-default-members = ["crates/client", "crates/procgen"]
+default-members = ["crates/client", "crates/editor"]
 
 [workspace.dependencies]
 eternal_config = { path = "crates/config" }
 eternal_grid = { path = "crates/grid" }
 eternal_procgen = { path = "crates/procgen" }
+eternal_ui = { path = "crates/ui" }
 
 bevy = { version = "0.17"  }
 avian2d = { version = "0.4" }

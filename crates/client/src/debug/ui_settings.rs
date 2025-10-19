@@ -14,15 +14,15 @@ use bevy::{
 use crate::{
     effects::FxFpsMultiplier,
     run_conditions::{component_changed, timeout},
-    ui::{
-        controls::spacer,
-        window::{WindowConfig, window},
-    },
     world::renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
 };
 use eternal_grid::{
     grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
     tile::{self, TileRegistry},
+};
+use eternal_ui::{
+    controls::spacer,
+    window::{WindowConfig, window},
 };
 
 const WIREFRAME_HEIGHT: f32 = 100.3;

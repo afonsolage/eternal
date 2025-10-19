@@ -3,7 +3,7 @@ use bevy::{ecs::resource::Resource, math::U16Vec2};
 pub const MAP_RESOLUTION: u16 = 3;
 pub const MAP_COUNT: u16 = 128;
 pub const ATLAS_AXIS_SIZE: usize = (MAP_COUNT * MAP_RESOLUTION) as usize;
-pub const ATLAS_SIZE: usize = (ATLAS_AXIS_SIZE as usize).pow(2);
+pub const ATLAS_SIZE: usize = ATLAS_AXIS_SIZE.pow(2);
 
 pub fn to_index(x: u16, y: u16) -> usize {
     y as usize * ATLAS_AXIS_SIZE + x as usize

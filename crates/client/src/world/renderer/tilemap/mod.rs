@@ -192,9 +192,6 @@ fn create_tilemap_chunk_mesh() -> Mesh {
     .with_inserted_indices(bevy::mesh::Indices::U16(indices))
 }
 
-#[derive(Component, Default, Debug, Clone, Copy)]
-pub struct TilemapIndex(pub u16);
-
 fn get_data_pod_layer(layer: LayerIndex, tile_data_image: &mut Image) -> &mut [TilePod] {
     let begin = layer.base_index();
     let end = begin + LAYER_SIZE;

@@ -23,15 +23,6 @@ pub struct TilePod {
     pub weight: u16, // Green channel.
 }
 
-impl TilePod {
-    pub fn discard() -> Self {
-        Self {
-            index: u16::MAX,
-            weight: u16::MAX,
-        }
-    }
-}
-
 impl From<&TilemapChunkMaterial> for TilemapChunkMaterialConfig {
     fn from(material: &TilemapChunkMaterial) -> Self {
         material.config.unwrap_or_default()

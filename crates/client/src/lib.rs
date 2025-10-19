@@ -2,12 +2,12 @@ use bevy::prelude::*;
 
 use eternal_config::ConfigPlugin;
 use eternal_grid::grid;
+use eternal_ui::UiPlugin;
 
 use crate::{
     debug::DebugPlugin,
     effects::EffectsPlugin,
     player::{Player, PlayerPlugin},
-    ui::UiPlugin,
     world::WorldPlugin,
 };
 
@@ -16,7 +16,6 @@ mod effects;
 mod noise;
 mod player;
 mod run_conditions;
-mod ui;
 mod world;
 
 pub struct ClientPlugin;

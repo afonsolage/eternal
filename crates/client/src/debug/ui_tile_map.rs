@@ -10,11 +10,11 @@ use bevy::{
     },
 };
 
-use crate::ui::window::{WindowConfig, window};
 use eternal_grid::{
     grid::{self, GridId, GridIdChanged, GridVisible, LayerIndex},
     tile::{self, TileRegistry},
 };
+use eternal_ui::window::{WindowConfig, window};
 pub struct UIDrawTileMap;
 
 impl Plugin for UIDrawTileMap {

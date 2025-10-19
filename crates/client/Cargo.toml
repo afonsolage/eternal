@@ -7,10 +7,11 @@ default-run = "client"
 [dependencies]
 eternal_grid.workspace = true
 eternal_config.workspace = true
+eternal_procgen.workspace = true
+eternal_ui.workspace = true
 
 bevy.workspace = true
 avian2d.workspace = true
-
 
 bytemuck.workspace = true
 thiserror.workspace = true

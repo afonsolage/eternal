@@ -1,28 +1,29 @@
 [package]
-name = "eternal_procgen"
+name = "eternal_editor"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-eternal_config.workspace = true
 eternal_grid.workspace = true
+eternal_procgen.workspace = true
 
 bevy.workspace = true
 
-thiserror.workspace = true
-serde.workspace = true
-ron.workspace = true
+bevy_egui.workspace = true
+bevy-inspector-egui.workspace = true
 
-noise = "0.9"
+[lints]
+workspace = true
+
+[[bin]]
+name = "editor"
+path = "bin/main.rs"
 
 [features]
 default = ["dev", "experimental"]
 dev = [
     "bevy/dynamic_linking",
     "bevy/track_location",
-    "bevy/bevy_dev_tools",
-    "bevy/debug",
-    "bevy/file_watcher",
 ]
 experimental = [
     "bevy/experimental_bevy_feathers",

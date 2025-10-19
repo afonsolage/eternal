@@ -2548,6 +2548,8 @@ dependencies = [
  "bytemuck",
  "eternal_config",
  "eternal_grid",
+ "eternal_procgen",
+ "eternal_ui",
  "noise",
  "ron 0.11.0",
  "serde",
@@ -2565,6 +2567,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "eternal_editor"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_egui",
+ "eternal_grid",
+ "eternal_procgen",
+]
+
+[[package]]
 name = "eternal_grid"
 version = "0.1.0"
 dependencies = [
@@ -2578,15 +2591,19 @@ name = "eternal_procgen"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy-inspector-egui",
- "bevy_egui",
  "eternal_config",
  "eternal_grid",
- "eternal_procgen",
  "noise",
  "ron 0.11.0",
  "serde",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "eternal_ui"
+version = "0.1.0"
+dependencies = [
+ "bevy",
 ]
 
 [[package]]

@@ -11,6 +11,6 @@ fn main() {
                 }),
                 ..Default::default()
             }),))
-        .add_plugins(eternal_client::ClientPlugin)
+        .add_plugins(eternal_editor::EditorPlugin)
         .run();
 }
