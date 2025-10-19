@@ -2573,6 +2573,7 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
+ "eternal_config",
  "eternal_grid",
  "eternal_procgen",
 ]

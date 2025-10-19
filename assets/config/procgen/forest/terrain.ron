@@ -28,21 +28,8 @@
             ),
         ),
         (
-            "clamped",
-            Terrace(
-                source: "base_with_mountain", 
-                control_points: [
-                    -1.0,  
-                    0.2,  
-                    0.4,  
-                    0.65,  
-                    1.0,  
-                ],
-            ),
-        ),
-        (
             "main",
-            Alias("clamped"),
+            Alias("base_with_mountain"),
         ),
     ]
 )

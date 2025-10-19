@@ -3,7 +3,9 @@ use bevy::{
     prelude::*,
     render::render_resource::{TextureDescriptor, TextureDimension, TextureFormat, TextureUsages},
 };
+use eternal_grid::tile::{NONE_INFO, TileRegistry};
 use eternal_procgen::{
+    biome::Biomes,
     map::{self, Map},
     noise::{NoiseChanged, NoiseType, Noises},
 };
@@ -31,7 +33,12 @@ impl Plugin for MapEditorPlugin {
 #[derive(Component)]
 struct MapImage;
 
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, noises: Noises) {
+fn setup(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    noises: Noises,
+    biomes: Biomes,
+) {
     let image = Image {
         data: Some(vec![u8::MAX; map::MAP_SIZE * 4]), // 4 colors (rgba)
         texture_descriptor: TextureDescriptor {
@@ -56,10 +63,11 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, noises: Nois
         },
     ));
 
-    let map = if noises.is_ready() {
-        eternal_procgen::generate_map(&noises)
+    let map = if noises.is_ready() && biomes.is_ready() {
+        let biome = biomes.get_biome("Forest").expect("Biome forest exists");
+        eternal_procgen::generate_map(&noises, biome)
     } else {
-        Map::new()
+        Map::default()
     };
 
     commands.insert_resource(map);
@@ -75,11 +83,16 @@ fn cleanup(mut commands: Commands, single: Option<Single<Entity, With<MapImage>>
 fn update_map_image(
     node: Single<&Sprite, With<MapImage>>,
     mut images: ResMut<Assets<Image>>,
+    registry: Res<TileRegistry>,
     map: Res<Map>,
+    biomes: Biomes,
 ) {
-    use bevy::color::palettes::css::*;
-
     let Some(image) = images.get_mut(node.image.id()) else {
+        return;
+    };
+
+    let Some(pallet) = biomes.get_pallet(&map.biome) else {
+        error!("Biome not found: {}", map.biome);
         return;
     };
 
@@ -91,6 +104,9 @@ fn update_map_image(
         let index = i * 4;
         let elevation = map.elevation[i];
 
+        let tile_id = pallet.collapse(elevation);
+        let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
+
         if elevation < min {
             min = elevation;
         }
@@ -98,15 +114,7 @@ fn update_map_image(
             max = elevation;
         }
 
-        let color = if elevation > 0.25 {
-            Srgba::WHITE.to_u8_array()
-        } else if elevation > 0.0 {
-            GREEN.to_u8_array()
-        } else if elevation > -0.25 {
-            LIGHT_BLUE.to_u8_array()
-        } else {
-            DARK_BLUE.to_u8_array()
-        };
+        let color = tile_info.map_color.to_u8_array();
 
         data[index] = color[0];
         data[index + 1] = color[1];
@@ -116,12 +124,18 @@ fn update_map_image(
     debug!("{min}, {max}");
 }
 
-fn update_map(mut reader: MessageReader<NoiseChanged>, noises: Noises, mut commands: Commands) {
+fn update_map(
+    mut reader: MessageReader<NoiseChanged>,
+    noises: Noises,
+    biomes: Biomes,
+    mut commands: Commands,
+) {
     if reader
         .read()
         .any(|NoiseChanged(tp)| matches!(tp, NoiseType::Map))
     {
-        commands.insert_resource(eternal_procgen::generate_map(&noises));
+        let biome = biomes.get_biome("Forest").expect("Biome forest exists");
+        commands.insert_resource(eternal_procgen::generate_map(&noises, biome));
     }
 
     reader.clear();

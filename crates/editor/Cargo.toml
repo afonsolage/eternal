@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 eternal_grid.workspace = true
 eternal_procgen.workspace = true
+eternal_config.workspace = true
 
 bevy.workspace = true
 

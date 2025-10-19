@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{ecs::system::SystemParam, prelude::*};
 use eternal_config::{
     loader::{ConfigAssetLoader, ConfigParser, ConfigParserContext},
     tile::TileConfigList,
@@ -11,36 +11,78 @@ pub(crate) struct BiomePlugin;
 
 impl Plugin for BiomePlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<Biomes>()
+        app.init_asset::<BiomeRegistry>()
             .init_asset::<BiomePallet>()
-            .init_asset_loader::<ConfigAssetLoader<Biomes>>()
+            .init_asset_loader::<ConfigAssetLoader<BiomeRegistry>>()
             .init_asset_loader::<ConfigAssetLoader<BiomePallet>>()
-            .add_systems(Startup, setup);
+            .init_resource::<BiomeRegistry>()
+            .add_systems(Startup, setup)
+            .add_systems(
+                Update,
+                update_biomes_res.run_if(on_message::<AssetEvent<BiomeRegistry>>),
+            );
     }
 }
 
 #[derive(Default, Asset, Debug, Clone, Reflect)]
 pub struct BiomePallet(Vec<(f32, TileId)>);
 
-#[derive(Debug, Clone, Reflect)]
-pub struct Biome {
-    name: String,
-    terrain_noise: Handle<NoiseStack>,
-    terrain_pallet: Handle<BiomePallet>,
+impl BiomePallet {
+    pub fn collapse(&self, value: f32) -> TileId {
+        for &(threshould, tile_id) in &self.0 {
+            if value < threshould {
+                return tile_id;
+            }
+        }
+
+        Default::default()
+    }
 }
 
-#[derive(Asset, Default, Debug, Clone, Resource, Reflect)]
-pub struct Biomes(Vec<Biome>);
+#[derive(Debug, Clone, Reflect)]
+pub struct Biome {
+    pub name: String,
+    pub terrain_noise: Handle<NoiseStack>,
+    pub terrain_pallet: Handle<BiomePallet>,
+}
+
+#[derive(Asset, Default, Debug, Clone, Resource, Reflect, Deref)]
+struct BiomeRegistry(Vec<Biome>);
+#[derive(SystemParam)]
+pub struct Biomes<'w> {
+    registry: Res<'w, BiomeRegistry>,
+    pallets: Res<'w, Assets<BiomePallet>>,
+}
+
+impl<'w> Biomes<'w> {
+    pub fn is_ready(&self) -> bool {
+        !self.registry.is_empty()
+    }
+
+    pub fn get_biome(&self, name: &str) -> Option<&Biome> {
+        self.registry.iter().find(|b| b.name == name)
+    }
+
+    pub fn get_pallet(&self, biome: &str) -> Option<&BiomePallet> {
+        self.registry.iter().find_map(|b| {
+            if b.name == biome {
+                self.pallets.get(b.terrain_pallet.id())
+            } else {
+                None
+            }
+        })
+    }
+}
 
 #[expect(unused, reason = "I need to keep the handle on the resource")]
 #[derive(Resource)]
-struct BiomesHandle(Handle<Biomes>);
+struct BiomesHandle(Handle<BiomeRegistry>);
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BiomesHandle(asset_server.load("config/procgen/biomes.ron")));
 }
 
-impl ConfigParser for Biomes {
+impl ConfigParser for BiomeRegistry {
     type Config = Vec<(String, String)>;
 
     async fn from_config(
@@ -61,7 +103,7 @@ impl ConfigParser for Biomes {
 
         debug!("Biomes loaded: {biomes:?}");
 
-        Ok(Biomes(biomes))
+        Ok(BiomeRegistry(biomes))
     }
 }
 
@@ -97,5 +139,26 @@ impl ConfigParser for BiomePallet {
         debug!("Pallet loaded: {pallet:?}");
 
         Ok(BiomePallet(pallet))
+    }
+}
+
+fn update_biomes_res(
+    mut reader: MessageReader<AssetEvent<BiomeRegistry>>,
+    mut commands: Commands,
+    biomes: Res<Assets<BiomeRegistry>>,
+) {
+    for &msg in reader.read() {
+        match msg {
+            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
+                let Some(biomes) = biomes.get(id) else {
+                    continue;
+                };
+
+                debug!("Updating biomes resource!");
+
+                commands.insert_resource(biomes.clone());
+            }
+            _ => continue,
+        }
     }
 }

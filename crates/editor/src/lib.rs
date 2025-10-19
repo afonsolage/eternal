@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use eternal_config::ConfigPlugin;
+use eternal_grid::ecs::GridPlugin;
 use eternal_procgen::ProcGenPlugin;
 
 use crate::{atlas_editor::AtlasEditorPlugin, map_editor::MapEditorPlugin};
@@ -17,9 +19,10 @@ impl Plugin for EditorPlugin {
             .add_plugins((
                 ProcGenPlugin,
                 camera::CameraPlugin,
-                AtlasEditorPlugin,
-                MapEditorPlugin,
+                ConfigPlugin,
+                GridPlugin,
             ))
+            .add_plugins((MapEditorPlugin, AtlasEditorPlugin))
             .init_state::<EditorState>()
             .add_systems(Update, switch_editor_state);
     }

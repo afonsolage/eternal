@@ -17,12 +17,14 @@ pub fn from_index(index: usize) -> U16Vec2 {
 #[derive(Default, Debug, Clone, Resource)]
 pub struct Map {
     pub elevation: Vec<f32>,
+    pub biome: String,
 }
 
 impl Map {
-    pub fn new() -> Self {
+    pub fn new(biome: String) -> Self {
         Self {
             elevation: vec![0.0; MAP_SIZE],
+            biome,
         }
     }
 }
