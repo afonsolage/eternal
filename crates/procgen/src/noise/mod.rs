@@ -1,6 +1,11 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
+use eternal_config::{
+    ConfigAssetLoaderError,
+    loader::{ConfigAssetLoader, ConfigParser},
+    noise::NoiseStackConfig,
+};
 
-use crate::noise::stack::{BoxedNoiseFn, NoiseStackLoader};
+use crate::noise::stack::BoxedNoiseFn;
 
 mod send_worley;
 mod stack;
@@ -13,7 +18,7 @@ impl Plugin for NoisePlugin {
         app.init_resource::<AtlasNoise>()
             .init_asset::<NoiseStack>()
             .add_message::<NoiseChanged>()
-            .init_asset_loader::<NoiseStackLoader>()
+            .init_asset_loader::<ConfigAssetLoader<NoiseStack>>()
             .add_systems(Startup, setup)
             .add_systems(
                 Update,
@@ -79,5 +84,19 @@ fn send_noise_changed_messages(
             }
             _ => continue,
         }
+    }
+}
+
+impl ConfigParser for NoiseStack {
+    type Config = NoiseStackConfig;
+
+    async fn from_config(
+        config: Self::Config,
+        _load_context: eternal_config::loader::ConfigParserContext<'_, '_>,
+    ) -> Result<Self, eternal_config::ConfigAssetLoaderError>
+    where
+        Self: Sized,
+    {
+        NoiseStack::parse_tree(config).map_err(|e| ConfigAssetLoaderError::Error(Box::new(e)))
     }
 }

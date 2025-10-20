@@ -1,5 +1,5 @@
 (
-    specs: [
+    [
         ( 
             "base_elevation",
             Fbm( 

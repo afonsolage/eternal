@@ -12,21 +12,21 @@ impl Plugin for ConfigTilePlugin {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Reflect)]
 pub enum TileKind {
     #[default]
     Terrain,
     Wall,
 }
 
-#[derive(Debug, Default, Clone, Copy, Deserialize)]
+#[derive(Debug, Default, Clone, Copy, Reflect)]
 pub enum BlendTech {
     #[default]
     None,
     Weight(u16),
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Reflect, Clone)]
 pub struct TileConfig {
     pub name: String,
     pub kind: TileKind,
@@ -36,7 +36,7 @@ pub struct TileConfig {
     pub blend_tech: Option<BlendTech>,
 }
 
-#[derive(Asset, TypePath, Debug, Deserialize, Clone)]
+#[derive(Asset, Debug, Reflect, Clone)]
 pub struct TileConfigList(pub Vec<TileConfig>);
 
 #[derive(Default)]
@@ -58,11 +58,13 @@ impl AssetLoader for TileConfigListAssetLoader {
         let mut buffer = Vec::new();
         reader.read_to_end(&mut buffer).await?;
 
-        use ron::extensions::Extensions;
-        let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+        // use ron::extensions::Extensions;
+        // let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
+        //
+        // let tile_list = opts.from_bytes(&buffer)?;
 
-        let tile_list = opts.from_bytes(&buffer)?;
+        todo!()
 
-        Ok(tile_list)
+        //Ok(tile_list)
     }
 }

@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use bevy::{
     asset::{AssetLoader, AssetPath, LoadContext},
     prelude::*,
+    reflect::{GetTypeRegistration, TypeRegistry, serde::TypedReflectDeserializer},
 };
 
 use crate::ConfigAssetLoaderError;
@@ -13,12 +14,26 @@ pub struct ConfigParserContext<'a, 'ctx>(&'a mut LoadContext<'ctx>);
 impl<'a, 'ctx> ConfigParserContext<'a, 'ctx> {
     pub fn deserialie_ron<T>(&self, bytes: &[u8]) -> Result<T, ConfigAssetLoaderError>
     where
-        T: for<'de> serde::Deserialize<'de>,
+        T: Reflect + GetTypeRegistration + FromReflect,
     {
         use ron::extensions::Extensions;
+        use serde::de::DeserializeSeed;
+
         let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
 
-        Ok(opts.from_bytes(bytes)?)
+        let mut registry = TypeRegistry::new();
+        registry.register_derived_types();
+
+        let registration = <T as GetTypeRegistration>::get_type_registration();
+        let mut deserializer = ron::de::Deserializer::from_bytes_with_options(bytes, &opts)?;
+        let reflect_deserializer = TypedReflectDeserializer::new(&registration, &registry);
+        let deserialized = reflect_deserializer.deserialize(&mut deserializer)?;
+
+        let Some(asset) = <T as FromReflect>::from_reflect(&*deserialized) else {
+            return Err(ConfigAssetLoaderError::Reflect);
+        };
+
+        Ok(asset)
     }
 
     pub async fn deserialize_file<T>(
@@ -26,7 +41,7 @@ impl<'a, 'ctx> ConfigParserContext<'a, 'ctx> {
         path: impl Into<AssetPath<'_>>,
     ) -> Result<T, ConfigAssetLoaderError>
     where
-        T: for<'de> serde::Deserialize<'de>,
+        T: Reflect + GetTypeRegistration + FromReflect,
     {
         let bytes = self.0.read_asset_bytes(path).await?;
         self.deserialie_ron(&bytes)
@@ -34,7 +49,7 @@ impl<'a, 'ctx> ConfigParserContext<'a, 'ctx> {
 }
 
 pub trait ConfigParser: Asset {
-    type Config: for<'de> serde::Deserialize<'de>;
+    type Config: Reflect + GetTypeRegistration + FromReflect;
 
     fn from_config(
         config: Self::Config,
