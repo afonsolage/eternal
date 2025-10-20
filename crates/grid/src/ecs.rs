@@ -1,13 +1,17 @@
 use bevy::{platform::collections::HashMap, prelude::*};
-use eternal_config::tile::{TileConfig, TileConfigList};
+use eternal_config::{
+    loader::{ConfigAssetPlugin, ConfigParser},
+    tile::{TileConfig, TileConfigList},
+};
 
-use crate::tile::{self, TileId, TileInfo, TileRegistry};
+use crate::tile::{self, TileId, TileInfo};
 
 pub struct GridPlugin;
 
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TileRegistry>()
+            .add_plugins(ConfigAssetPlugin::<TileRegistry>::default())
             .add_systems(Startup, setup)
             .add_systems(
                 Update,
@@ -35,6 +39,57 @@ impl From<eternal_config::tile::BlendTech> for crate::tile::BlendTech {
             eternal_config::tile::BlendTech::None => Self::None,
             eternal_config::tile::BlendTech::Weight(w) => Self::Weight(w),
         }
+    }
+}
+
+#[derive(Debug, Asset, Default, Clone, Reflect, Deref, DerefMut, Resource)]
+pub struct TileRegistry(HashMap<TileId, TileInfo>);
+
+impl TileRegistry {
+    pub fn new(map: HashMap<TileId, TileInfo>) -> Self {
+        Self(map)
+    }
+}
+
+impl ConfigParser for TileRegistry {
+    type Config = Vec<TileConfig>;
+
+    async fn from_config(
+        config: Self::Config,
+        mut load_context: eternal_config::loader::ConfigParserContext<'_, '_>,
+    ) -> Result<Self, eternal_config::ConfigAssetLoaderError>
+    where
+        Self: Sized,
+    {
+        let map = config
+            .into_iter()
+            .enumerate()
+            .map(|(idx, config)| {
+                let TileConfig {
+                    name,
+                    kind,
+                    atlas,
+                    atlas_index,
+                    map_color,
+                    blend_tech,
+                } = config;
+
+                let info = TileInfo {
+                    name: name.clone().into(),
+                    kind: (kind).into(),
+                    atlas: load_context.load(atlas),
+                    atlas_index,
+                    map_color: (&map_color).into(),
+                    blend_tech: blend_tech.unwrap_or_default().into(),
+                };
+
+                let id = TileId::new(idx as u16);
+                (id, info)
+            })
+            .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
+            .collect::<HashMap<_, _>>();
+
+        Ok(Self(map))
     }
 }
 

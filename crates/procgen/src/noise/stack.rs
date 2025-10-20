@@ -82,50 +82,6 @@ impl NoiseStack {
         }
     }
 
-    // fn from_bytes(bytes: &[u8]) -> Result<Self, NoiseStackError> {
-    //     let mut registry = TypeRegistry::new();
-    //     registry.register::<(f64, f64)>();
-    //     registry.register::<Vec<(f64, f64)>>();
-    //     registry.register::<Vec<f64>>();
-    //     registry.register::<WorleySpecReturnType>();
-    //     registry.register::<NoiseFnSpec>();
-    //     registry.register::<NoiseStackConfig>();
-    //     registry.register::<(String, NoiseFnSpec)>();
-    //     registry.register::<Vec<(String, NoiseFnSpec)>>();
-    //
-    //     let registration = <NoiseStackConfig as GetTypeRegistration>::get_type_registration();
-    //     let mut deserializer = ron::de::Deserializer::from_bytes(bytes)?;
-    //     let reflect_deserializer = TypedReflectDeserializer::new(&registration, &registry);
-    //     let deserialized = reflect_deserializer.deserialize(&mut deserializer)?;
-    //
-    //     let Some(raw_stack) = <NoiseStackConfig as FromReflect>::from_reflect(&*deserialized) else {
-    //         return Err(NoiseStackError::Reflect);
-    //     };
-    //
-    //     raw_stack.parse_tree()
-    // }
-
-    // fn new(specs: HashMap<String, NoiseFnSpec>) -> Self {
-    //     Self { specs }
-    // }
-
-    // fn build_dep_tree<'a, 'b: 'a>(&'a self, name: &'b str) -> Vec<&'a str> {
-    //     let spec = self.specs.get(name).unwrap();
-    //     let dependencies = spec.dependencies();
-    //
-    //     std::iter::once(name)
-    //         .chain(
-    //             dependencies
-    //                 .into_iter()
-    //                 .flat_map(|name| self.build_dep_tree(name)),
-    //         )
-    //         .collect::<Vec<&str>>()
-    // }
-    //
-    // fn get_spec(&self, name: &str) -> Option<&NoiseFnSpec> {
-    //     self.specs.get(name)
-    // }
-
     fn build(&self, name: &str) -> Result<BoxedNoiseFn, NoiseStackParserError> {
         // TODO: Add a caching
 

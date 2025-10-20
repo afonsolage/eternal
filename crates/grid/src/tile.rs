@@ -39,15 +39,6 @@ pub struct TileInfo {
     pub blend_tech: BlendTech,
 }
 
-#[derive(Debug, Default, Clone, Reflect, Deref, DerefMut, Resource)]
-pub struct TileRegistry(HashMap<TileId, TileInfo>);
-
-impl TileRegistry {
-    pub fn new(map: HashMap<TileId, TileInfo>) -> Self {
-        Self(map)
-    }
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Hash, Deref, Reflect)]
 #[repr(transparent)]
 pub struct TileId(u16);

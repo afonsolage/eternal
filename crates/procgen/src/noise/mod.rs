@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
 use eternal_config::{
     ConfigAssetLoaderError,
-    loader::{ConfigAssetLoader, ConfigParser},
+    loader::{ConfigAssetPlugin, ConfigAssetUpdated, ConfigParser},
     noise::NoiseStackConfig,
 };
 
@@ -16,14 +16,10 @@ pub(crate) struct NoisePlugin;
 impl Plugin for NoisePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<AtlasNoise>()
-            .init_asset::<NoiseStack>()
+            .add_plugins(ConfigAssetPlugin::<NoiseStack>::default())
+            .add_observer(on_config_asset_updated)
             .add_message::<NoiseChanged>()
-            .init_asset_loader::<ConfigAssetLoader<NoiseStack>>()
-            .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                send_noise_changed_messages.run_if(on_message::<AssetEvent<NoiseStack>>),
-            );
+            .add_systems(Startup, setup);
     }
 }
 
@@ -66,24 +62,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(AtlasNoise(asset_server.load("config/procgen/atlas.ron")));
 }
 
-fn send_noise_changed_messages(
-    mut reader: MessageReader<AssetEvent<NoiseStack>>,
+fn on_config_asset_updated(
+    asset_updated: On<ConfigAssetUpdated<NoiseStack>>,
     mut writer: MessageWriter<NoiseChanged>,
     noises: Noises,
 ) {
-    for &msg in reader.read() {
-        match msg {
-            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
-                if id == noises.atlas.0.id() {
-                    debug!("Noise atlas changed!");
-                    writer.write(NoiseChanged(NoiseType::Atlas));
-                } else {
-                    debug!("Noise map changed!");
-                    writer.write(NoiseChanged(NoiseType::Map));
-                }
-            }
-            _ => continue,
-        }
+    let &ConfigAssetUpdated(id) = asset_updated.event();
+
+    if id == noises.atlas.0.id() {
+        debug!("Noise atlas changed!");
+        writer.write(NoiseChanged(NoiseType::Atlas));
+    } else {
+        debug!("Noise map changed!");
+        writer.write(NoiseChanged(NoiseType::Map));
     }
 }
 

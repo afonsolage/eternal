@@ -11,8 +11,9 @@ use bevy::{
 };
 
 use eternal_grid::{
+    ecs::TileRegistry,
     grid::{self, GridId, GridIdChanged, GridVisible, LayerIndex},
-    tile::{self, TileRegistry},
+    tile::{self},
 };
 use eternal_ui::window::{WindowConfig, window};
 pub struct UIDrawTileMap;

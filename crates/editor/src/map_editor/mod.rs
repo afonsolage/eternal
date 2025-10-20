@@ -3,7 +3,7 @@ use bevy::{
     prelude::*,
     render::render_resource::{TextureDescriptor, TextureDimension, TextureFormat, TextureUsages},
 };
-use eternal_grid::tile::{NONE_INFO, TileRegistry};
+use eternal_grid::{ecs::TileRegistry, tile::NONE_INFO};
 use eternal_procgen::{
     biome::Biomes,
     map::{self, Map},

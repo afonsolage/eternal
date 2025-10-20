@@ -11,11 +11,12 @@ use bevy::{
 
 mod material;
 
+use eternal_grid::ecs::TileRegistry;
 pub use material::{TilePod, TilemapChunkMaterial};
 
 use crate::world::{
     grid::{self, GridId, GridIdChanged, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
-    tile::{self, TileRegistry},
+    tile::{self},
 };
 
 pub const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);

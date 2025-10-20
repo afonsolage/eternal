@@ -1,6 +1,6 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
 use eternal_config::{
-    loader::{ConfigAssetLoader, ConfigParser, ConfigParserContext},
+    loader::{ConfigAssetPlugin, ConfigAssetUpdated, ConfigParser, ConfigParserContext},
     tile::TileConfig,
 };
 use eternal_grid::tile::TileId;
@@ -11,16 +11,14 @@ pub(crate) struct BiomePlugin;
 
 impl Plugin for BiomePlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<BiomeRegistry>()
-            .init_asset::<BiomePallet>()
-            .init_asset_loader::<ConfigAssetLoader<BiomeRegistry>>()
-            .init_asset_loader::<ConfigAssetLoader<BiomePallet>>()
-            .init_resource::<BiomeRegistry>()
-            .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                update_biomes_res.run_if(on_message::<AssetEvent<BiomeRegistry>>),
-            );
+        app.add_plugins((
+            ConfigAssetPlugin::<BiomeRegistry>::default(),
+            ConfigAssetPlugin::<BiomePallet>::default(),
+        ))
+        .add_observer(on_biome_registry_config_updated)
+        .add_observer(on_biome_pallet_config_updated)
+        .init_resource::<BiomeRegistry>()
+        .add_systems(Startup, setup);
     }
 }
 
@@ -48,6 +46,7 @@ pub struct Biome {
 
 #[derive(Asset, Default, Debug, Clone, Resource, Reflect, Deref)]
 struct BiomeRegistry(Vec<Biome>);
+
 #[derive(SystemParam)]
 pub struct Biomes<'w> {
     registry: Res<'w, BiomeRegistry>,
@@ -82,9 +81,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BiomesHandle(asset_server.load("config/procgen/biomes.ron")));
 }
 
-#[derive(Reflect)]
-struct BiomeRegistryItem((String, String));
-
 impl ConfigParser for BiomeRegistry {
     type Config = Vec<(String, String)>;
 
@@ -109,9 +105,6 @@ impl ConfigParser for BiomeRegistry {
         Ok(BiomeRegistry(biomes))
     }
 }
-
-#[derive(Reflect)]
-struct BiomePalletItem((f32, String));
 
 impl ConfigParser for BiomePallet {
     type Config = Vec<(f32, String)>;
@@ -148,23 +141,25 @@ impl ConfigParser for BiomePallet {
     }
 }
 
-fn update_biomes_res(
-    mut reader: MessageReader<AssetEvent<BiomeRegistry>>,
+fn on_biome_registry_config_updated(
+    updated: On<ConfigAssetUpdated<BiomeRegistry>>,
     mut commands: Commands,
     biomes: Res<Assets<BiomeRegistry>>,
 ) {
-    for &msg in reader.read() {
-        match msg {
-            AssetEvent::Added { id } | AssetEvent::Modified { id } => {
-                let Some(biomes) = biomes.get(id) else {
-                    continue;
-                };
+    let &ConfigAssetUpdated(id) = updated.event();
+    let Some(biomes) = biomes.get(id) else {
+        return;
+    };
 
-                debug!("Updating biomes resource!");
+    debug!("Updating biomes resource!");
 
-                commands.insert_resource(biomes.clone());
-            }
-            _ => continue,
-        }
-    }
+    commands.insert_resource(biomes.clone());
+}
+
+fn on_biome_pallet_config_updated(
+    _updated: On<ConfigAssetUpdated<BiomePallet>>,
+    mut biome_registry: ResMut<BiomeRegistry>,
+) {
+    // just to trigger the change detection
+    biome_registry.set_changed();
 }

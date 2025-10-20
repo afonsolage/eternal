@@ -17,8 +17,9 @@ use crate::{
     world::renderer::tilemap::{Tilemap, TilemapCache, TilemapChunkMaterial},
 };
 use eternal_grid::{
+    ecs::TileRegistry,
     grid::{self, Grid, GridElevation, GridId, GridVisible, LAYERS, LAYERS_COUNT, LayerIndex},
-    tile::{self, TileRegistry},
+    tile::{self},
 };
 use eternal_ui::{
     controls::spacer,
