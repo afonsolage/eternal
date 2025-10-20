@@ -1,7 +1,7 @@
 use bevy::{ecs::system::SystemParam, prelude::*};
 use eternal_config::{
     loader::{ConfigAssetLoader, ConfigParser, ConfigParserContext},
-    tile::TileConfigList,
+    tile::TileConfig,
 };
 use eternal_grid::tile::TileId;
 
@@ -82,6 +82,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.insert_resource(BiomesHandle(asset_server.load("config/procgen/biomes.ron")));
 }
 
+#[derive(Reflect)]
+struct BiomeRegistryItem((String, String));
+
 impl ConfigParser for BiomeRegistry {
     type Config = Vec<(String, String)>;
 
@@ -107,6 +110,9 @@ impl ConfigParser for BiomeRegistry {
     }
 }
 
+#[derive(Reflect)]
+struct BiomePalletItem((f32, String));
+
 impl ConfigParser for BiomePallet {
     type Config = Vec<(f32, String)>;
 
@@ -117,14 +123,14 @@ impl ConfigParser for BiomePallet {
     where
         Self: Sized,
     {
-        let tiles_config: TileConfigList =
-            load_context.deserialize_file("config/tiles.ron").await?;
+        let tiles_config: Vec<TileConfig> = load_context
+            .deserialize_config_from_file("config/tiles.ron")
+            .await?;
 
         let pallet = config
             .into_iter()
             .filter_map(|(height, tile_name)| {
                 let Some(index) = tiles_config
-                    .0
                     .iter()
                     .position(|config| config.name == tile_name)
                 else {

@@ -1,14 +1,17 @@
-use bevy::{asset::AssetLoader, prelude::*};
+use bevy::prelude::*;
 
-use crate::{ConfigAssetLoaderError, color::HexColor};
-use serde::Deserialize;
+use crate::{
+    ConfigAssetLoaderError,
+    color::HexColor,
+    loader::{ConfigAssetLoader, ConfigParser},
+};
 
 pub struct ConfigTilePlugin;
 
 impl Plugin for ConfigTilePlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<TileConfigList>()
-            .init_asset_loader::<TileConfigListAssetLoader>();
+            .init_asset_loader::<ConfigAssetLoader<TileConfigList>>();
     }
 }
 
@@ -36,35 +39,19 @@ pub struct TileConfig {
     pub blend_tech: Option<BlendTech>,
 }
 
-#[derive(Asset, Debug, Reflect, Clone)]
+#[derive(Asset, Default, Debug, Reflect, Clone)]
 pub struct TileConfigList(pub Vec<TileConfig>);
 
-#[derive(Default)]
-struct TileConfigListAssetLoader;
+impl ConfigParser for TileConfigList {
+    type Config = Vec<TileConfig>;
 
-impl AssetLoader for TileConfigListAssetLoader {
-    type Asset = TileConfigList;
-
-    type Settings = ();
-
-    type Error = ConfigAssetLoaderError;
-
-    async fn load(
-        &self,
-        reader: &mut dyn bevy::asset::io::Reader,
-        _settings: &Self::Settings,
-        _load_context: &mut bevy::asset::LoadContext<'_>,
-    ) -> Result<TileConfigList, Self::Error> {
-        let mut buffer = Vec::new();
-        reader.read_to_end(&mut buffer).await?;
-
-        // use ron::extensions::Extensions;
-        // let opts = ron::Options::default().with_default_extension(Extensions::IMPLICIT_SOME);
-        //
-        // let tile_list = opts.from_bytes(&buffer)?;
-
-        todo!()
-
-        //Ok(tile_list)
+    async fn from_config(
+        config: Self::Config,
+        _load_context: crate::loader::ConfigParserContext<'_, '_>,
+    ) -> Result<Self, ConfigAssetLoaderError>
+    where
+        Self: Sized,
+    {
+        Ok(Self(config))
     }
 }

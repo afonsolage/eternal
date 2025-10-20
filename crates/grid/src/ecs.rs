@@ -72,7 +72,7 @@ fn process_tile_info_list(
                         kind: (*kind).into(),
                         atlas: asset_server.load(atlas),
                         atlas_index: *atlas_index,
-                        map_color: map_color.0,
+                        map_color: map_color.into(),
                         blend_tech: blend_tech.unwrap_or_default().into(),
                     };
 

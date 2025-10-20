@@ -27,8 +27,8 @@ pub enum ConfigAssetLoaderError {
     RonSpannedError(#[from] ron::error::SpannedError),
     #[error("Failed to read asset: {0}")]
     ReadAssetError(#[from] bevy::asset::ReadAssetBytesError),
-    #[error("Failed to deserialize asset. Reflect Error")]
-    Reflect,
+    #[error("Failed to deserialize asset. Reflect Error: {0}")]
+    Reflect(&'static str),
     #[error("Failed to load asset: {0}")]
     Error(Box<dyn std::error::Error + Send + Sync + 'static>),
 }

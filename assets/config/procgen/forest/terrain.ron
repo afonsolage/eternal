@@ -1,8 +1,8 @@
 (
     [
-        ( 
+        (
             "base_elevation",
-            Fbm( 
+            Fbm(
                 seed: 42,
                 frequency: 0.025,
                 octaves: 4,
@@ -31,5 +31,5 @@
             "main",
             Alias("base_with_mountain"),
         ),
-    ]
+    ],
 )

@@ -1,8 +1,8 @@
 (
     [
-        ( 
+        (
             "continent",
-            Fbm( 
+            Fbm(
                 seed: 42,
                 frequency: 0.05,
                 octaves: 3,
@@ -27,5 +27,5 @@
                 source_2: "continent",
             ),
         ),
-    ]
+    ],
 )

@@ -1,8 +1,8 @@
 (
     [
-        ( 
+        (
             "base_elevation",
-            Fbm( 
+            Fbm(
                 seed: 42,
                 frequency: 0.025,
                 octaves: 4,
@@ -30,19 +30,16 @@
         (
             "clamped",
             Terrace(
-                source: "base_with_mountain", 
+                source: "base_with_mountain",
                 control_points: [
-                    -1.0,  
-                    0.2,  
-                    0.4,  
-                    0.65,  
-                    1.0,  
+                    -1.0,
+                    0.2,
+                    0.4,
+                    0.65,
+                    1.0,
                 ],
             ),
         ),
-        (
-            "main",
-            Alias("clamped"),
-        ),
-    ]
+        ("main", Alias("clamped")),
+    ],
 )
