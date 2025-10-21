@@ -112,7 +112,7 @@ impl<T> ConfigAssetLoader<T> {
         else {
             error!("{:?}", &*deserialized);
             return Err(ConfigAssetLoaderError::Reflect(
-                "Failed to convert from reflect.",
+                "Failed to convert from reflect.".to_string(),
             ));
         };
 

@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 use thiserror::Error;
 
+pub mod biome;
 pub mod color;
 pub mod loader;
 pub mod noise;
+pub mod server;
 pub mod tile;
 use tile::ConfigTilePlugin;
 
@@ -28,7 +30,7 @@ pub enum ConfigAssetLoaderError {
     #[error("Failed to read asset: {0}")]
     ReadAssetError(#[from] bevy::asset::ReadAssetBytesError),
     #[error("Failed to deserialize asset. Reflect Error: {0}")]
-    Reflect(&'static str),
+    Reflect(String),
     #[error("Failed to load asset: {0}")]
     Error(Box<dyn std::error::Error + Send + Sync + 'static>),
 }

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, marker::PhantomData};
 
-use bevy::{math::U16Vec2, platform::collections::HashMap, prelude::*};
+use bevy::{math::U16Vec2, prelude::*};
 use serde::Deserialize;
 
 pub const NONE_INFO: TileInfo = TileInfo {
@@ -46,6 +46,10 @@ pub struct TileId(u16);
 impl TileId {
     pub fn new(id: u16) -> Self {
         Self(id)
+    }
+
+    pub fn none() -> TileId {
+        TileId(u16::MAX)
     }
 }
 

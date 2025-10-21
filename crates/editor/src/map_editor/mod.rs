@@ -5,7 +5,7 @@ use bevy::{
 };
 use eternal_grid::{ecs::TileRegistry, tile::NONE_INFO};
 use eternal_procgen::{
-    biome::Biomes,
+    biome::BiomeRegistry,
     map::{self, Map},
     noise::{NoiseChanged, NoiseType, Noises},
 };
@@ -22,7 +22,7 @@ impl Plugin for MapEditorPlugin {
                 Update,
                 (
                     update_map_image.run_if(resource_exists_and_changed::<Map>),
-                    update_map.run_if(on_message::<NoiseChanged>),
+                    update_map,
                     draw_gizmos,
                 )
                     .run_if(in_state(EditorState::Map)),
@@ -37,7 +37,7 @@ fn setup(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
     noises: Noises,
-    biomes: Biomes,
+    biome_registry: Res<BiomeRegistry>,
 ) {
     let image = Image {
         data: Some(vec![u8::MAX; map::MAP_SIZE * 4]), // 4 colors (rgba)
@@ -63,8 +63,10 @@ fn setup(
         },
     ));
 
-    let map = if noises.is_ready() && biomes.is_ready() {
-        let biome = biomes.get_biome("Forest").expect("Biome forest exists");
+    let map = if noises.is_ready() && !biome_registry.is_empty() {
+        let biome = biome_registry
+            .get_biome("Forest")
+            .expect("Biome forest exists");
         eternal_procgen::generate_map(&noises, biome)
     } else {
         Map::default()
@@ -85,13 +87,13 @@ fn update_map_image(
     mut images: ResMut<Assets<Image>>,
     registry: Res<TileRegistry>,
     map: Res<Map>,
-    biomes: Biomes,
+    biome_registry: Res<BiomeRegistry>,
 ) {
     let Some(image) = images.get_mut(node.image.id()) else {
         return;
     };
 
-    let Some(pallet) = biomes.get_pallet(&map.biome) else {
+    let Some(biome) = biome_registry.get_biome(&map.biome) else {
         error!("Biome not found: {}", map.biome);
         return;
     };
@@ -104,7 +106,7 @@ fn update_map_image(
         let index = i * 4;
         let elevation = map.elevation[i];
 
-        let tile_id = pallet.collapse(elevation);
+        let tile_id = biome.terrain_pallet.collapse(elevation);
         let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
 
         if elevation < min {
@@ -127,18 +129,20 @@ fn update_map_image(
 fn update_map(
     mut reader: MessageReader<NoiseChanged>,
     noises: Noises,
-    biomes: Biomes,
+    biome_registry: Res<BiomeRegistry>,
     mut commands: Commands,
 ) {
-    if reader
+    let noise_changed = reader
         .read()
-        .any(|NoiseChanged(tp)| matches!(tp, NoiseType::Map))
-    {
-        let biome = biomes.get_biome("Forest").expect("Biome forest exists");
+        .any(|NoiseChanged(tp)| matches!(tp, NoiseType::Map));
+    reader.clear();
+
+    if noise_changed || biome_registry.is_changed() {
+        let biome = biome_registry
+            .get_biome("Forest")
+            .expect("Biome forest exists");
         commands.insert_resource(eternal_procgen::generate_map(&noises, biome));
     }
-
-    reader.clear();
 }
 
 fn draw_gizmos(mut gizmos: Gizmos, projetion: Single<&Projection, With<Camera2d>>) {

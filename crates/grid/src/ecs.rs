@@ -49,6 +49,19 @@ impl TileRegistry {
     pub fn new(map: HashMap<TileId, TileInfo>) -> Self {
         Self(map)
     }
+
+    pub fn get_by_name(&self, name: &str) -> &TileInfo {
+        self.0
+            .values()
+            .find(|info| info.name == name)
+            .unwrap_or(&tile::NONE_INFO)
+    }
+
+    pub fn get_id_by_name(&self, name: &str) -> TileId {
+        self.iter()
+            .find_map(|(id, info)| if info.name == name { Some(*id) } else { None })
+            .unwrap_or(TileId::none())
+    }
 }
 
 impl ConfigParser for TileRegistry {

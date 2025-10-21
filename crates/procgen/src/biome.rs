@@ -1,9 +1,9 @@
-use bevy::{ecs::system::SystemParam, prelude::*};
+use bevy::prelude::*;
 use eternal_config::{
-    loader::{ConfigAssetPlugin, ConfigAssetUpdated, ConfigParser, ConfigParserContext},
-    tile::TileConfig,
+    biome::{BiomePalletConfig, BiomeRegistryConfig},
+    server::{ConfigAssetUpdated, ConfigServer, ConfigServerPlugin, Configs},
 };
-use eternal_grid::tile::TileId;
+use eternal_grid::{ecs::TileRegistry, tile::TileId};
 
 use crate::noise::NoiseStack;
 
@@ -12,17 +12,15 @@ pub(crate) struct BiomePlugin;
 impl Plugin for BiomePlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ConfigAssetPlugin::<BiomeRegistry>::default(),
-            ConfigAssetPlugin::<BiomePallet>::default(),
+            ConfigServerPlugin::<BiomeRegistryConfig>::default(),
+            ConfigServerPlugin::<BiomePalletConfig>::default(),
         ))
-        .add_observer(on_biome_registry_config_updated)
-        .add_observer(on_biome_pallet_config_updated)
         .init_resource::<BiomeRegistry>()
         .add_systems(Startup, setup);
     }
 }
 
-#[derive(Default, Asset, Debug, Clone, Reflect)]
+#[derive(Default, Debug, Clone, Reflect)]
 pub struct BiomePallet(Vec<(f32, TileId)>);
 
 impl BiomePallet {
@@ -41,125 +39,94 @@ impl BiomePallet {
 pub struct Biome {
     pub name: String,
     pub terrain_noise: Handle<NoiseStack>,
-    pub terrain_pallet: Handle<BiomePallet>,
+    pub terrain_pallet: BiomePallet,
 }
 
-#[derive(Asset, Default, Debug, Clone, Resource, Reflect, Deref)]
-struct BiomeRegistry(Vec<Biome>);
+#[derive(Component, Deref)]
+struct BiomeName(String);
 
-#[derive(SystemParam)]
-pub struct Biomes<'w> {
-    registry: Res<'w, BiomeRegistry>,
-    pallets: Res<'w, Assets<BiomePallet>>,
-}
+#[derive(Default, Debug, Clone, Resource, Reflect, Deref)]
+pub struct BiomeRegistry(Vec<Biome>);
 
-impl<'w> Biomes<'w> {
-    pub fn is_ready(&self) -> bool {
-        !self.registry.is_empty()
-    }
-
+impl BiomeRegistry {
     pub fn get_biome(&self, name: &str) -> Option<&Biome> {
-        self.registry.iter().find(|b| b.name == name)
+        self.0.iter().find(|b| b.name == name)
     }
 
-    pub fn get_pallet(&self, biome: &str) -> Option<&BiomePallet> {
-        self.registry.iter().find_map(|b| {
-            if b.name == biome {
-                self.pallets.get(b.terrain_pallet.id())
-            } else {
-                None
-            }
-        })
+    pub fn get_biome_mut(&mut self, name: &str) -> Option<&mut Biome> {
+        self.0.iter_mut().find(|b| b.name == name)
     }
 }
 
-#[expect(unused, reason = "I need to keep the handle on the resource")]
-#[derive(Resource)]
-struct BiomesHandle(Handle<BiomeRegistry>);
-
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(BiomesHandle(asset_server.load("config/procgen/biomes.ron")));
+fn setup(mut config_server: ConfigServer) {
+    config_server
+        .load::<BiomeRegistryConfig>("config/procgen/biomes.ron")
+        .observe(on_biome_config_updated);
 }
 
-impl ConfigParser for BiomeRegistry {
-    type Config = Vec<(String, String)>;
-
-    async fn from_config(
-        config: Self::Config,
-        mut load_context: ConfigParserContext<'_, '_>,
-    ) -> Result<Self, eternal_config::ConfigAssetLoaderError>
-    where
-        Self: Sized,
-    {
-        let biomes = config
-            .into_iter()
-            .map(|(name, folder)| Biome {
-                name,
-                terrain_noise: load_context.load(format!("config/procgen/{folder}/terrain.ron")),
-                terrain_pallet: load_context.load(format!("config/procgen/{folder}/pallet.ron")),
-            })
-            .collect();
-
-        debug!("Biomes loaded: {biomes:?}");
-
-        Ok(BiomeRegistry(biomes))
-    }
-}
-
-impl ConfigParser for BiomePallet {
-    type Config = Vec<(f32, String)>;
-
-    async fn from_config(
-        config: Self::Config,
-        mut load_context: ConfigParserContext<'_, '_>,
-    ) -> Result<Self, eternal_config::ConfigAssetLoaderError>
-    where
-        Self: Sized,
-    {
-        let tiles_config: Vec<TileConfig> = load_context
-            .deserialize_config_from_file("config/tiles.ron")
-            .await?;
-
-        let pallet = config
-            .into_iter()
-            .filter_map(|(height, tile_name)| {
-                let Some(index) = tiles_config
-                    .iter()
-                    .position(|config| config.name == tile_name)
-                else {
-                    error!("Tile {tile_name} not found on tile config list!");
-                    return None;
-                };
-
-                Some((height, TileId::new(index as u16)))
-            })
-            .collect();
-
-        debug!("Pallet loaded: {pallet:?}");
-
-        Ok(BiomePallet(pallet))
-    }
-}
-
-fn on_biome_registry_config_updated(
-    updated: On<ConfigAssetUpdated<BiomeRegistry>>,
+fn on_biome_config_updated(
+    updated: On<ConfigAssetUpdated>,
+    biome_configs: Configs<BiomeRegistryConfig>,
+    asset_server: Res<AssetServer>,
+    mut config_server: ConfigServer,
     mut commands: Commands,
-    biomes: Res<Assets<BiomeRegistry>>,
 ) {
-    let &ConfigAssetUpdated(id) = updated.event();
-    let Some(biomes) = biomes.get(id) else {
+    let id = updated.id();
+    let Some(BiomeRegistryConfig(biome_configs)) = biome_configs.get(id).cloned() else {
+        error!("Biome registry config not found for id {}", id);
         return;
     };
 
-    debug!("Updating biomes resource!");
+    let mut biomes = Vec::with_capacity(biome_configs.len());
 
-    commands.insert_resource(biomes.clone());
+    for config in biome_configs {
+        config_server
+            .load::<BiomePalletConfig>(&config.pallet)
+            .insert(BiomeName(config.name.clone()))
+            .observe(on_biome_pallet_config_updated);
+        let biome = Biome {
+            name: config.name,
+            terrain_noise: asset_server.load(&config.noise),
+            terrain_pallet: Default::default(),
+        };
+
+        biomes.push(biome);
+    }
+
+    commands.insert_resource(BiomeRegistry(biomes));
 }
 
 fn on_biome_pallet_config_updated(
-    _updated: On<ConfigAssetUpdated<BiomePallet>>,
-    mut biome_registry: ResMut<BiomeRegistry>,
+    updated: On<ConfigAssetUpdated>,
+    q_names: Query<&BiomeName>,
+    pallet_configs: Configs<BiomePalletConfig>,
+    mut registry: ResMut<BiomeRegistry>,
+    tile_registry: Res<TileRegistry>,
 ) {
-    // just to trigger the change detection
-    biome_registry.set_changed();
+    let Some(pallet_config) = pallet_configs.get(updated.id()) else {
+        error!("Pallet config not found for id {}", updated.id());
+        return;
+    };
+
+    let biome_name = q_names
+        .get(updated.event_target())
+        .expect("Observer to have BiomeName component")
+        .as_str();
+
+    let Some(biome) = registry.get_biome_mut(biome_name) else {
+        error!("Biome {biome_name} not found on registry!");
+        return;
+    };
+
+    debug!("Updating pallet of biome {}!", biome.name);
+
+    let pallet = pallet_config
+        .iter()
+        .map(|(threshould, tile_name)| {
+            let tile_id = tile_registry.get_id_by_name(tile_name);
+            (*threshould, tile_id)
+        })
+        .collect();
+
+    biome.terrain_pallet = BiomePallet(pallet);
 }
