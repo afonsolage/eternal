@@ -1,6 +1,15 @@
 use bevy::prelude::*;
 use serde::Deserialize;
 
+use crate::server::{ConfigServerPlugin, FromConfig};
+
+pub(crate) struct NoiseStackConfigPlugin;
+impl Plugin for NoiseStackConfigPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((ConfigServerPlugin::<NoiseStackConfig>::default(),));
+    }
+}
+
 #[derive(Debug, Copy, Clone, Default, Reflect, Deserialize)]
 pub enum WorleyConfigReturnType {
     #[default]
@@ -149,3 +158,14 @@ pub enum NoiseConfigError {
 
 #[derive(Default, Reflect, Clone, Deserialize, Deref)]
 pub struct NoiseStackConfig(pub Vec<(String, NoiseFnConfig)>);
+
+impl FromConfig for NoiseStackConfig {
+    type InnerType = Vec<(String, NoiseFnConfig)>;
+
+    fn from_inner<'a, 'ctx>(
+        inner: Self::InnerType,
+        _load_context: &'a mut bevy::asset::LoadContext<'ctx>,
+    ) -> Self {
+        Self(inner)
+    }
+}

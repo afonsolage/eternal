@@ -1,19 +1,19 @@
 use bevy::prelude::*;
 use thiserror::Error;
 
+use crate::{biome::BiomeConfigPlugin, noise::NoiseStackConfigPlugin, tile::TileConfigPlugin};
+
 pub mod biome;
 pub mod color;
-pub mod loader;
 pub mod noise;
 pub mod server;
 pub mod tile;
-use tile::ConfigTilePlugin;
 
 pub struct ConfigPlugin;
 
 impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(ConfigTilePlugin);
+        app.add_plugins((BiomeConfigPlugin, TileConfigPlugin, NoiseStackConfigPlugin));
     }
 }
 

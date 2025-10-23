@@ -15,7 +15,7 @@
             seed: 42,
             frequency: 0.01,
             octaves: 4,
-            lacunarity: 2.142578125,
+            lacunarity: 2.142578124,
             persistence: 0.5,
         ),
     ),

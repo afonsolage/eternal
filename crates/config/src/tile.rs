@@ -1,17 +1,14 @@
 use bevy::prelude::*;
 
 use crate::{
-    ConfigAssetLoaderError,
     color::HexColor,
-    loader::{ConfigAssetLoader, ConfigParser},
+    server::{ConfigServerPlugin, FromConfig},
 };
 
-pub struct ConfigTilePlugin;
-
-impl Plugin for ConfigTilePlugin {
+pub(crate) struct TileConfigPlugin;
+impl Plugin for TileConfigPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset::<TileConfigList>()
-            .init_asset_loader::<ConfigAssetLoader<TileConfigList>>();
+        app.add_plugins((ConfigServerPlugin::<TileConfigList>::default(),));
     }
 }
 
@@ -39,19 +36,16 @@ pub struct TileConfig {
     pub blend_tech: Option<BlendTech>,
 }
 
-#[derive(Asset, Default, Debug, Reflect, Clone)]
+#[derive(Default, Debug, Reflect, Clone)]
 pub struct TileConfigList(pub Vec<TileConfig>);
 
-impl ConfigParser for TileConfigList {
-    type Config = Vec<TileConfig>;
+impl FromConfig for TileConfigList {
+    type InnerType = Vec<TileConfig>;
 
-    async fn from_config(
-        config: Self::Config,
-        _load_context: crate::loader::ConfigParserContext<'_, '_>,
-    ) -> Result<Self, ConfigAssetLoaderError>
-    where
-        Self: Sized,
-    {
-        Ok(Self(config))
+    fn from_inner<'a, 'ctx>(
+        asset: Self::InnerType,
+        _load_context: &'a mut bevy::asset::LoadContext<'ctx>,
+    ) -> Self {
+        Self(asset)
     }
 }

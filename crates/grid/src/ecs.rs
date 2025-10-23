@@ -1,6 +1,6 @@
 use bevy::{platform::collections::HashMap, prelude::*};
 use eternal_config::{
-    loader::{ConfigAssetPlugin, ConfigParser},
+    server::{ConfigAssetUpdated, ConfigServer, Configs},
     tile::{TileConfig, TileConfigList},
 };
 
@@ -11,18 +11,9 @@ pub struct GridPlugin;
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<TileRegistry>()
-            .add_plugins(ConfigAssetPlugin::<TileRegistry>::default())
-            .add_systems(Startup, setup)
-            .add_systems(
-                Update,
-                process_tile_info_list.run_if(on_message::<AssetEvent<TileConfigList>>),
-            );
+            .add_systems(Startup, setup);
     }
 }
-
-#[derive(Resource)]
-#[expect(unused, reason = "The handle needs to be hold somewhere")]
-struct TileInfoHandle(Handle<TileConfigList>);
 
 impl From<eternal_config::tile::TileKind> for crate::tile::TileKind {
     fn from(value: eternal_config::tile::TileKind) -> Self {
@@ -42,7 +33,7 @@ impl From<eternal_config::tile::BlendTech> for crate::tile::BlendTech {
     }
 }
 
-#[derive(Debug, Asset, Default, Clone, Reflect, Deref, DerefMut, Resource)]
+#[derive(Debug, Default, Clone, Reflect, Deref, DerefMut, Resource)]
 pub struct TileRegistry(HashMap<TileId, TileInfo>);
 
 impl TileRegistry {
@@ -64,95 +55,53 @@ impl TileRegistry {
     }
 }
 
-impl ConfigParser for TileRegistry {
-    type Config = Vec<TileConfig>;
-
-    async fn from_config(
-        config: Self::Config,
-        mut load_context: eternal_config::loader::ConfigParserContext<'_, '_>,
-    ) -> Result<Self, eternal_config::ConfigAssetLoaderError>
-    where
-        Self: Sized,
-    {
-        let map = config
-            .into_iter()
-            .enumerate()
-            .map(|(idx, config)| {
-                let TileConfig {
-                    name,
-                    kind,
-                    atlas,
-                    atlas_index,
-                    map_color,
-                    blend_tech,
-                } = config;
-
-                let info = TileInfo {
-                    name: name.clone().into(),
-                    kind: (kind).into(),
-                    atlas: load_context.load(atlas),
-                    atlas_index,
-                    map_color: (&map_color).into(),
-                    blend_tech: blend_tech.unwrap_or_default().into(),
-                };
-
-                let id = TileId::new(idx as u16);
-                (id, info)
-            })
-            .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
-            .collect::<HashMap<_, _>>();
-
-        Ok(Self(map))
-    }
+fn setup(mut config_server: ConfigServer) {
+    config_server
+        .load::<TileConfigList>("config/tiles.ron")
+        .observe(on_tile_config_list_updated);
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(TileInfoHandle(asset_server.load("config/tiles.ron")));
-}
-
-fn process_tile_info_list(
-    mut msg_reader: MessageReader<AssetEvent<TileConfigList>>,
-    assets: Res<Assets<TileConfigList>>,
-    mut commands: Commands,
+fn on_tile_config_list_updated(
+    updated: On<ConfigAssetUpdated>,
+    configs: Configs<TileConfigList>,
     asset_server: Res<AssetServer>,
+    mut commands: Commands,
 ) {
-    for msg in msg_reader.read() {
-        debug!("Event: {msg:?}");
-        if let &AssetEvent::Added { id } | &AssetEvent::Modified { id } = msg
-            && let Some(tile_config_list) = assets.get(id)
-        {
-            let map = tile_config_list
-                .0
-                .iter()
-                .enumerate()
-                .map(|(idx, config)| {
-                    let TileConfig {
-                        name,
-                        kind,
-                        atlas,
-                        atlas_index,
-                        map_color,
-                        blend_tech,
-                    } = config;
+    let Some(tile_config_list) = configs.get(updated.id()) else {
+        error!("Failed to get tile config list");
+        return;
+    };
 
-                    let info = TileInfo {
-                        name: name.clone().into(),
-                        kind: (*kind).into(),
-                        atlas: asset_server.load(atlas),
-                        atlas_index: *atlas_index,
-                        map_color: map_color.into(),
-                        blend_tech: blend_tech.unwrap_or_default().into(),
-                    };
+    let map = tile_config_list
+        .0
+        .iter()
+        .enumerate()
+        .map(|(idx, config)| {
+            let TileConfig {
+                name,
+                kind,
+                atlas,
+                atlas_index,
+                map_color,
+                blend_tech,
+            } = config;
 
-                    let id = TileId::new(idx as u16);
-                    (id, info)
-                })
-                .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
-                .collect::<HashMap<_, _>>();
+            let info = TileInfo {
+                name: name.clone().into(),
+                kind: (*kind).into(),
+                atlas: asset_server.load(atlas),
+                atlas_index: *atlas_index,
+                map_color: map_color.into(),
+                blend_tech: blend_tech.unwrap_or_default().into(),
+            };
 
-            debug!("Loaded tile info list: {map:?}");
+            let id = TileId::new(idx as u16);
+            (id, info)
+        })
+        .chain(std::iter::once((TileId::new(u16::MAX), tile::NONE_INFO)))
+        .collect::<HashMap<_, _>>();
 
-            commands.insert_resource(TileRegistry::new(map));
-        }
-    }
+    debug!("Loaded tile info list: {map:?}");
+
+    commands.insert_resource(TileRegistry::new(map));
 }

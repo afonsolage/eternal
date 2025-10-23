@@ -13,7 +13,7 @@ pub trait FromConfig: Reflectable + Send + Sync + 'static {
     type InnerType: Reflectable + FromReflect;
 
     fn from_inner<'a, 'ctx>(
-        asset: Self::InnerType,
+        inner: Self::InnerType,
         _load_context: &'a mut LoadContext<'ctx>,
     ) -> Self;
 }
@@ -21,8 +21,16 @@ pub trait FromConfig: Reflectable + Send + Sync + 'static {
 #[derive(Asset, Reflect)]
 struct ConfigAsset<C: FromConfig>(C);
 
-pub struct ConfigServerPlugin<T>(PhantomData<T>);
+pub(crate) struct ConfigServerPlugin<T>(PhantomData<T>);
 impl<T> Default for ConfigServerPlugin<T> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+#[derive(Resource)]
+struct AssetAdded<C>(PhantomData<C>);
+impl<C> Default for AssetAdded<C> {
     fn default() -> Self {
         Self(Default::default())
     }
@@ -35,6 +43,7 @@ where
     fn build(&self, app: &mut App) {
         app.init_asset::<ConfigAsset<T>>()
             .init_asset_loader::<ConfigAssetLoader<T>>()
+            .init_resource::<AssetAdded<T>>()
             .add_systems(Update, trigger_config_asset_updated::<T>);
     }
 }
@@ -96,7 +105,7 @@ fn trigger_config_asset_updated<C: FromConfig>(
             AssetEvent::Added { id } | AssetEvent::Modified { id } => {
                 let Some((entity, _)) = handlers.iter().find(|(_, handler)| handler.0.id() == id)
                 else {
-                    error!("Handler not found for asset {id}");
+                    error!("Config handler not found for asset {id}");
                     continue;
                 };
 

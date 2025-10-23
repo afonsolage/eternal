@@ -1,5 +1,15 @@
-use crate::server::FromConfig;
+use crate::server::{ConfigServerPlugin, FromConfig};
 use bevy::prelude::*;
+
+pub(crate) struct BiomeConfigPlugin;
+impl Plugin for BiomeConfigPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_plugins((
+            ConfigServerPlugin::<BiomeRegistryConfig>::default(),
+            ConfigServerPlugin::<BiomePalletConfig>::default(),
+        ));
+    }
+}
 
 #[derive(Reflect, Default, Debug, Clone)]
 pub struct BiomeConfig {

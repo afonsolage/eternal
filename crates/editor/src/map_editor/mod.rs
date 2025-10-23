@@ -7,7 +7,6 @@ use eternal_grid::{ecs::TileRegistry, tile::NONE_INFO};
 use eternal_procgen::{
     biome::BiomeRegistry,
     map::{self, Map},
-    noise::{NoiseChanged, NoiseType, Noises},
 };
 
 use crate::EditorState;
@@ -22,7 +21,7 @@ impl Plugin for MapEditorPlugin {
                 Update,
                 (
                     update_map_image.run_if(resource_exists_and_changed::<Map>),
-                    update_map,
+                    update_map.run_if(resource_changed::<BiomeRegistry>),
                     draw_gizmos,
                 )
                     .run_if(in_state(EditorState::Map)),
@@ -36,7 +35,6 @@ struct MapImage;
 fn setup(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
-    noises: Noises,
     biome_registry: Res<BiomeRegistry>,
 ) {
     let image = Image {
@@ -63,11 +61,11 @@ fn setup(
         },
     ));
 
-    let map = if noises.is_ready() && !biome_registry.is_empty() {
+    let map = if !biome_registry.is_empty() {
         let biome = biome_registry
             .get_biome("Forest")
             .expect("Biome forest exists");
-        eternal_procgen::generate_map(&noises, biome)
+        eternal_procgen::generate_map(biome)
     } else {
         Map::default()
     };
@@ -126,23 +124,11 @@ fn update_map_image(
     debug!("{min}, {max}");
 }
 
-fn update_map(
-    mut reader: MessageReader<NoiseChanged>,
-    noises: Noises,
-    biome_registry: Res<BiomeRegistry>,
-    mut commands: Commands,
-) {
-    let noise_changed = reader
-        .read()
-        .any(|NoiseChanged(tp)| matches!(tp, NoiseType::Map));
-    reader.clear();
-
-    if noise_changed || biome_registry.is_changed() {
-        let biome = biome_registry
-            .get_biome("Forest")
-            .expect("Biome forest exists");
-        commands.insert_resource(eternal_procgen::generate_map(&noises, biome));
-    }
+fn update_map(biome_registry: Res<BiomeRegistry>, mut commands: Commands) {
+    let biome = biome_registry
+        .get_biome("Forest")
+        .expect("Biome forest exists");
+    commands.insert_resource(eternal_procgen::generate_map(biome));
 }
 
 fn draw_gizmos(mut gizmos: Gizmos, projetion: Single<&Projection, With<Camera2d>>) {

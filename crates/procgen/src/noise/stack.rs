@@ -1,4 +1,4 @@
-use bevy::{asset::Asset, platform::collections::HashMap, reflect::Reflect};
+use bevy::{platform::collections::HashMap, reflect::Reflect};
 use eternal_config::noise::{NoiseFnConfig, NoiseStackConfig, WorleyConfigReturnType};
 use noise::{
     Add, Billow, Blend, Clamp, Constant, Curve, Exponent, Fbm, Max, Min, MultiFractal, Multiply,
@@ -30,13 +30,15 @@ pub(crate) enum NoiseStackParserError {
     DuplicatedNames(String),
 }
 
-#[derive(Asset, Debug, Default, Reflect, Clone)]
+#[derive(Debug, Default, Reflect, Clone)]
 pub struct NoiseStack {
     specs: HashMap<String, NoiseFnConfig>,
 }
 
 impl NoiseStack {
-    pub(crate) fn parse_tree(specs: NoiseStackConfig) -> Result<NoiseStack, NoiseStackParserError> {
+    pub(crate) fn from_config(
+        specs: &NoiseStackConfig,
+    ) -> Result<NoiseStack, NoiseStackParserError> {
         if specs.is_empty() {
             return Err(NoiseStackParserError::Empty);
         }
@@ -77,7 +79,7 @@ impl NoiseStack {
         } else {
             bevy::log::debug!("Noise tree loaded.");
             Ok(NoiseStack {
-                specs: specs.0.into_iter().collect(),
+                specs: specs.0.clone().into_iter().collect(),
             })
         }
     }
@@ -247,6 +249,10 @@ impl NoiseStack {
         };
 
         Ok(noise_fn)
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.specs.is_empty()
     }
 
     pub fn main(&self) -> BoxedNoiseFn {
