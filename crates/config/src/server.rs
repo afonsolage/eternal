@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use bevy::{
-    asset::{AssetLoader, AssetPath, LoadContext, UntypedAssetId},
+    asset::{AssetLoader, AssetPath, UntypedAssetId},
     ecs::system::SystemParam,
     prelude::*,
     reflect::Reflectable,
@@ -12,10 +12,7 @@ use crate::ConfigAssetLoaderError;
 pub trait FromConfig: Reflectable + Send + Sync + 'static {
     type InnerType: Reflectable + FromReflect;
 
-    fn from_inner<'a, 'ctx>(
-        inner: Self::InnerType,
-        _load_context: &'a mut LoadContext<'ctx>,
-    ) -> Self;
+    fn from_inner(inner: Self::InnerType) -> Self;
 }
 
 #[derive(Asset, Reflect)]
@@ -141,20 +138,20 @@ where
         &self,
         reader: &mut dyn bevy::asset::io::Reader,
         _settings: &Self::Settings,
-        load_context: &mut bevy::asset::LoadContext<'_>,
+        _load_context: &mut bevy::asset::LoadContext<'_>,
     ) -> std::result::Result<Self::Asset, Self::Error> {
         let mut bytes = Vec::new();
         reader.read_to_end(&mut bytes).await?;
 
-        let config: T::InnerType = deserialize_config(&bytes)?;
+        let config: T::InnerType = deserialize_inner_type(&bytes)?;
 
-        let asset = T::from_inner(config, load_context);
+        let asset = T::from_inner(config);
 
         Ok(ConfigAsset(asset))
     }
 }
 
-pub fn deserialize_config<C>(bytes: &[u8]) -> Result<C, ConfigAssetLoaderError>
+pub(crate) fn deserialize_inner_type<C>(bytes: &[u8]) -> Result<C, ConfigAssetLoaderError>
 where
     C: Reflectable + FromReflect,
 {
@@ -188,4 +185,14 @@ where
     };
 
     Ok(config)
+}
+
+#[cfg(test)]
+pub(crate) fn deserialize_config<C>(bytes: &[u8]) -> C
+where
+    C: FromConfig,
+{
+    let inner = deserialize_inner_type(bytes).unwrap();
+
+    C::from_inner(inner)
 }

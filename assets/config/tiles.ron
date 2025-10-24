@@ -47,4 +47,12 @@
         map_color: "#11cc66",
         blend_tech: None,
     ),
+    (
+        kind: Wall,
+        name: "TREE_WALL",
+        atlas: "sheets/terrain.png",
+        atlas_index: 7,
+        map_color: "#5a3618",
+        blend_tech: None,
+    ),
 ]

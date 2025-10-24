@@ -162,10 +162,7 @@ pub struct NoiseStackConfig(pub Vec<(String, NoiseFnConfig)>);
 impl FromConfig for NoiseStackConfig {
     type InnerType = Vec<(String, NoiseFnConfig)>;
 
-    fn from_inner<'a, 'ctx>(
-        inner: Self::InnerType,
-        _load_context: &'a mut bevy::asset::LoadContext<'ctx>,
-    ) -> Self {
+    fn from_inner<'a>(inner: Self::InnerType) -> Self {
         Self(inner)
     }
 }

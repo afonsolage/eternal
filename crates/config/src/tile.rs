@@ -42,10 +42,7 @@ pub struct TileConfigList(pub Vec<TileConfig>);
 impl FromConfig for TileConfigList {
     type InnerType = Vec<TileConfig>;
 
-    fn from_inner<'a, 'ctx>(
-        asset: Self::InnerType,
-        _load_context: &'a mut bevy::asset::LoadContext<'ctx>,
-    ) -> Self {
+    fn from_inner<'a>(asset: Self::InnerType) -> Self {
         Self(asset)
     }
 }

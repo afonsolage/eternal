@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use eternal_config::{
     biome::{BiomePalletConfig, BiomeRegistryConfig},
+    flora::FloraRegistryConfig,
     noise::NoiseStackConfig,
     server::{ConfigAssetUpdated, ConfigServer, Configs},
 };
@@ -16,6 +17,19 @@ impl Plugin for BiomePlugin {
             .add_systems(Startup, setup);
     }
 }
+
+#[derive(Default, Debug, Clone, Reflect)]
+pub struct Flora {
+    pub name: String,
+    pub tile: TileId,
+    pub threshold: f32,
+    pub spacing: f32,
+    pub elevation_range: Option<(f32, f32)>,
+    pub allowed_terrains: Vec<TileId>,
+}
+
+#[derive(Default, Debug, Clone, Reflect, Deref)]
+pub struct FloraRegistry(Vec<Flora>);
 
 #[derive(Default, Debug, Clone, Reflect)]
 pub struct BiomePallet(Vec<(f32, TileId)>);
@@ -35,6 +49,8 @@ impl BiomePallet {
 #[derive(Default, Debug, Clone, Reflect)]
 pub struct Biome {
     pub name: String,
+    pub flora_registry: FloraRegistry,
+    pub flora_noise: NoiseStack,
     pub terrain_noise: NoiseStack,
     pub terrain_pallet: BiomePallet,
 }
@@ -61,6 +77,12 @@ fn setup(mut config_server: ConfigServer) {
         .observe(on_biome_config_updated);
 }
 
+#[derive(Component, Debug, Clone, Copy)]
+enum NoiseType {
+    Terrain,
+    Flora,
+}
+
 fn on_biome_config_updated(
     updated: On<ConfigAssetUpdated>,
     biome_configs: Configs<BiomeRegistryConfig>,
@@ -77,14 +99,24 @@ fn on_biome_config_updated(
 
     for config in biome_configs {
         config_server
-            .load::<BiomePalletConfig>(&config.pallet)
+            .load::<BiomePalletConfig>(&config.terrain_pallet)
             .insert(BiomeName(config.name.clone()))
-            .observe(on_biome_pallet_config_updated);
+            .observe(on_biome_terrain_pallet_config_updated);
 
         config_server
-            .load::<NoiseStackConfig>(&config.noise)
-            .insert(BiomeName(config.name.clone()))
+            .load::<NoiseStackConfig>(&config.terrain_noise)
+            .insert((BiomeName(config.name.clone()), NoiseType::Terrain))
             .observe(on_biome_noise_config_updated);
+
+        config_server
+            .load::<NoiseStackConfig>(&config.flora_noise)
+            .insert((BiomeName(config.name.clone()), NoiseType::Flora))
+            .observe(on_biome_noise_config_updated);
+
+        config_server
+            .load::<FloraRegistryConfig>(&config.flora)
+            .insert(BiomeName(config.name.clone()))
+            .observe(on_biome_flora_config_updated);
 
         let biome = Biome {
             name: config.name,
@@ -97,7 +129,7 @@ fn on_biome_config_updated(
     commands.insert_resource(BiomeRegistry(biomes));
 }
 
-fn on_biome_pallet_config_updated(
+fn on_biome_terrain_pallet_config_updated(
     updated: On<ConfigAssetUpdated>,
     q_names: Query<&BiomeName>,
     pallet_configs: Configs<BiomePalletConfig>,
@@ -134,16 +166,15 @@ fn on_biome_pallet_config_updated(
 
 fn on_biome_noise_config_updated(
     updated: On<ConfigAssetUpdated>,
-    q_names: Query<&BiomeName>,
+    q_params: Query<(&BiomeName, &NoiseType)>,
     configs: Configs<NoiseStackConfig>,
     mut registry: ResMut<BiomeRegistry>,
 ) {
-    let biome_name = q_names
+    let (BiomeName(biome_name), &noise_type) = q_params
         .get(updated.event_target())
-        .expect("Observer to have BiomeName component")
-        .as_str();
+        .expect("Observer to have BiomeName and NoiseType components");
 
-    debug!("Updating noise of biome {biome_name}");
+    debug!("Updating noise of biome {biome_name} ({noise_type:?})");
 
     let Some(noise_config) = configs.get(updated.id()) else {
         error!("Noise config not found for biome {biome_name}.");
@@ -163,5 +194,51 @@ fn on_biome_noise_config_updated(
         return;
     };
 
-    biome.terrain_noise = stack;
+    match noise_type {
+        NoiseType::Terrain => biome.terrain_noise = stack,
+        NoiseType::Flora => biome.flora_noise = stack,
+    }
+}
+
+fn on_biome_flora_config_updated(
+    updated: On<ConfigAssetUpdated>,
+    q_names: Query<&BiomeName>,
+    flora_configs: Configs<FloraRegistryConfig>,
+    mut registry: ResMut<BiomeRegistry>,
+    tile_registry: Res<TileRegistry>,
+) {
+    let biome_name = q_names
+        .get(updated.event_target())
+        .expect("Observer to have BiomeName component")
+        .as_str();
+
+    debug!("Updating flora registry of biome {biome_name}!");
+
+    let Some(flora_registry_config) = flora_configs.get(updated.id()) else {
+        error!("Flora registry config not found for biome {biome_name}");
+        return;
+    };
+
+    let Some(biome) = registry.get_biome_mut(biome_name) else {
+        error!("Biome {biome_name} not found on registry!");
+        return;
+    };
+
+    let registry = flora_registry_config
+        .iter()
+        .map(|flora_config| Flora {
+            name: flora_config.name.clone(),
+            tile: tile_registry.get_id_by_name(&flora_config.tile),
+            threshold: flora_config.threshold,
+            spacing: flora_config.spacing,
+            elevation_range: flora_config.elevation_range,
+            allowed_terrains: flora_config
+                .allowed_terrains
+                .iter()
+                .map(|name| tile_registry.get_id_by_name(name))
+                .collect(),
+        })
+        .collect();
+
+    biome.flora_registry = FloraRegistry(registry);
 }
