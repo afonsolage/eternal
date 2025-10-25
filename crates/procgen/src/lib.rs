@@ -28,11 +28,10 @@ pub fn generate_atlas(noise_stack: &NoiseStack) -> Atlas {
     debug!("Generating atlas!");
 
     let mut atlas = Atlas::new();
-    let noise_fn = noise_stack.main();
 
     for y in 0..atlas::ATLAS_AXIS_SIZE as u16 {
         for x in 0..atlas::ATLAS_AXIS_SIZE as u16 {
-            atlas.elevation[atlas::to_index(x, y)] = noise_fn.get([x as f64, y as f64]) as f32;
+            atlas.elevation[atlas::to_index(x, y)] = noise_stack.get(x as f32, y as f32);
         }
     }
 
@@ -48,6 +47,7 @@ pub fn generate_map(biome: &Biome) -> Map {
     for y in 0..grid::DIMS.y as u16 {
         for x in 0..grid::DIMS.x as u16 {
             generate_terrain(x, y, biome, &mut map);
+            generate_flora(x, y, biome, &mut map);
         }
     }
 
@@ -57,10 +57,26 @@ pub fn generate_map(biome: &Biome) -> Map {
 }
 
 fn generate_terrain(x: u16, y: u16, biome: &Biome, map: &mut Map) {
-    let noise_fn = biome.terrain_noise.main();
-
-    let elevation = noise_fn.get([x as f64, y as f64]) as f32;
+    let elevation = biome.terrain_noise.get(x as f32, y as f32);
 
     map.elevation.set(x, y, TileElevation::new(elevation));
     map.tile[LayerIndex::Floor].set(x, y, biome.terrain_pallet.collapse(elevation));
+}
+
+fn generate_flora(x: u16, y: u16, biome: &Biome, map: &mut Map) {
+    let probability = biome.flora_noise.get(x as f32, y as f32);
+    let elevation = **map.elevation.get(x, y);
+    let tile = map.tile[LayerIndex::Floor].get(x, y);
+
+    let Some(flora) = biome.flora_registry.iter().find(|flora| {
+        flora.threshold > probability
+            && (flora.allowed_terrains.is_empty() || flora.allowed_terrains.contains(tile))
+            && flora
+                .elevation_range
+                .is_none_or(|(min, max)| elevation > min && elevation < max)
+    }) else {
+        return;
+    };
+
+    map.tile[LayerIndex::Wall].set(x, y, flora.tile);
 }

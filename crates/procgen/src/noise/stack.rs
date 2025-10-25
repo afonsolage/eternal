@@ -7,7 +7,7 @@ use noise::{
 
 use super::send_worley::SendWorley;
 
-pub type BoxedNoiseFn = Box<dyn NoiseFn<f64, 2> + Send + 'static + Sync>;
+type BoxedNoiseFn = Box<dyn NoiseFn<f64, 2> + Send + 'static + Sync>;
 
 fn from_worley_config(spec: WorleyConfigReturnType) -> worley::ReturnType {
     match spec {
@@ -274,12 +274,15 @@ impl NoiseStack {
         Ok(noise_fn)
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.specs.is_empty()
+    pub fn get(&self, x: f32, y: f32) -> f32 {
+        self.main
+            .as_ref()
+            .expect("Main to be built")
+            .get([x as f64, y as f64]) as f32
     }
 
-    pub fn main(&self) -> &BoxedNoiseFn {
-        self.main.as_ref().expect("Main to be built")
+    pub fn is_empty(&self) -> bool {
+        self.specs.is_empty()
     }
 
     // pub(crate) fn rebuild(&mut self) -> Result<(), NoiseStackParserError> {
