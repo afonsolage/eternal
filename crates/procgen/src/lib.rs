@@ -1,4 +1,8 @@
 use bevy::prelude::*;
+use eternal_grid::{
+    grid::{self, LayerIndex},
+    tile::TileElevation,
+};
 
 use crate::{
     atlas::{Atlas, AtlasPlugin},
@@ -41,14 +45,22 @@ pub fn generate_map(biome: &Biome) -> Map {
     debug!("Generating map!");
 
     let mut map = Map::new(biome.name.clone());
-    let noise_fn = biome.terrain_noise.main();
-    for y in 0..map::MAP_AXIS_SIZE as u16 {
-        for x in 0..map::MAP_AXIS_SIZE as u16 {
-            map.elevation[map::to_index(x, y)] = noise_fn.get([x as f64, y as f64]) as f32;
+    for y in 0..grid::DIMS.y as u16 {
+        for x in 0..grid::DIMS.x as u16 {
+            generate_terrain(x, y, biome, &mut map);
         }
     }
 
     debug!("Map generated!");
 
     map
+}
+
+fn generate_terrain(x: u16, y: u16, biome: &Biome, map: &mut Map) {
+    let noise_fn = biome.terrain_noise.main();
+
+    let elevation = noise_fn.get([x as f64, y as f64]) as f32;
+
+    map.elevation.set(x, y, TileElevation::new(elevation));
+    map.tile[LayerIndex::Floor].set(x, y, biome.terrain_pallet.collapse(elevation));
 }

@@ -7,7 +7,7 @@ use noise::{
 
 use super::send_worley::SendWorley;
 
-pub type BoxedNoiseFn = Box<dyn NoiseFn<f64, 2> + Send>;
+pub type BoxedNoiseFn = Box<dyn NoiseFn<f64, 2> + Send + 'static + Sync>;
 
 fn from_worley_config(spec: WorleyConfigReturnType) -> worley::ReturnType {
     match spec {
@@ -30,9 +30,28 @@ pub(crate) enum NoiseStackParserError {
     DuplicatedNames(String),
 }
 
-#[derive(Debug, Default, Reflect, Clone)]
+#[derive(Default, Reflect)]
 pub struct NoiseStack {
     specs: HashMap<String, NoiseFnConfig>,
+    #[reflect(ignore)]
+    main: Option<BoxedNoiseFn>,
+}
+
+impl std::fmt::Debug for NoiseStack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NoiseStack")
+            .field("specs", &self.specs)
+            .finish()
+    }
+}
+
+impl Clone for NoiseStack {
+    fn clone(&self) -> Self {
+        Self {
+            specs: self.specs.clone(),
+            main: None,
+        }
+    }
 }
 
 impl NoiseStack {
@@ -78,16 +97,20 @@ impl NoiseStack {
             Err(NoiseStackParserError::DepSpec)
         } else {
             bevy::log::debug!("Noise tree loaded.");
+            let specs = specs.0.clone().into_iter().collect();
+            let main = Self::build(&specs, "main")?;
             Ok(NoiseStack {
-                specs: specs.0.clone().into_iter().collect(),
+                specs,
+                main: Some(main),
             })
         }
     }
 
-    fn build(&self, name: &str) -> Result<BoxedNoiseFn, NoiseStackParserError> {
-        // TODO: Add a caching
-
-        let Some(spec) = self.specs.get(name) else {
+    fn build(
+        specs: &HashMap<String, NoiseFnConfig>,
+        name: &str,
+    ) -> Result<BoxedNoiseFn, NoiseStackParserError> {
+        let Some(spec) = specs.get(name) else {
             return Err(NoiseStackParserError::NotFound(name.to_string()));
         };
 
@@ -134,7 +157,7 @@ impl NoiseStack {
                 source,
                 control_points,
             } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 let curve = control_points
                     .iter()
                     .copied()
@@ -148,35 +171,35 @@ impl NoiseStack {
                 scale,
                 bias,
             } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 Box::new(ScaleBias::new(source).set_scale(*scale).set_bias(*bias))
             }
             NoiseFnConfig::Min { source_1, source_2 } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
                 Box::new(Min::new(source_1, source_2))
             }
             NoiseFnConfig::Max { source_1, source_2 } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
                 Box::new(Max::new(source_1, source_2))
             }
             NoiseFnConfig::Multiply { source_1, source_2 } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
                 Box::new(Multiply::new(source_1, source_2))
             }
             NoiseFnConfig::Add { source_1, source_2 } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
                 Box::new(Add::new(source_1, source_2))
             }
             NoiseFnConfig::Clamp { source, bounds } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 Box::new(Clamp::new(source).set_bounds(bounds.0, bounds.1))
             }
             NoiseFnConfig::Exponent { source, exponent } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 Box::new(Exponent::new(source).set_exponent(*exponent))
             }
             NoiseFnConfig::Turbulence {
@@ -186,7 +209,7 @@ impl NoiseStack {
                 power,
                 roughness,
             } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 let turbulence = Turbulence::<_, Perlin>::new(source)
                     .set_seed(*seed)
                     .set_frequency(*frequency)
@@ -201,9 +224,9 @@ impl NoiseStack {
                 bounds,
                 falloff,
             } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
-                let control = self.build(control)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
+                let control = Self::build(specs, control)?;
                 let select = Select::new(source_1, source_2, control)
                     .set_bounds(bounds.0, bounds.1)
                     .set_falloff(*falloff);
@@ -213,7 +236,7 @@ impl NoiseStack {
                 source,
                 control_points: control_ponts,
             } => {
-                let source = self.build(source)?;
+                let source = Self::build(specs, source)?;
                 let terrace = control_ponts
                     .iter()
                     .copied()
@@ -239,13 +262,13 @@ impl NoiseStack {
                 source_2,
                 control,
             } => {
-                let source_1 = self.build(source_1)?;
-                let source_2 = self.build(source_2)?;
-                let control = self.build(control)?;
+                let source_1 = Self::build(specs, source_1)?;
+                let source_2 = Self::build(specs, source_2)?;
+                let control = Self::build(specs, control)?;
                 let blend = Blend::new(source_1, source_2, control);
                 Box::new(blend)
             }
-            NoiseFnConfig::Alias(source) => self.build(source)?,
+            NoiseFnConfig::Alias(source) => Self::build(specs, source)?,
         };
 
         Ok(noise_fn)
@@ -255,8 +278,12 @@ impl NoiseStack {
         self.specs.is_empty()
     }
 
-    pub fn main(&self) -> BoxedNoiseFn {
-        //TODO: Add some caching
-        self.build("main").expect("main exists on every stack")
+    pub fn main(&self) -> &BoxedNoiseFn {
+        self.main.as_ref().expect("Main to be built")
     }
+
+    // pub(crate) fn rebuild(&mut self) -> Result<(), NoiseStackParserError> {
+    //     self.main = Some(Self::build(&self.specs, "main")?);
+    //     Ok(())
+    // }
 }

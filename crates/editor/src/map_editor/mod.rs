@@ -3,11 +3,12 @@ use bevy::{
     prelude::*,
     render::render_resource::{TextureDescriptor, TextureDimension, TextureFormat, TextureUsages},
 };
-use eternal_grid::{ecs::TileRegistry, tile::NONE_INFO};
-use eternal_procgen::{
-    biome::BiomeRegistry,
-    map::{self, Map},
+use eternal_grid::{
+    ecs::TileRegistry,
+    grid::{self, LayerIndex},
+    tile::NONE_INFO,
 };
+use eternal_procgen::{biome::BiomeRegistry, map::Map};
 
 use crate::EditorState;
 
@@ -38,12 +39,12 @@ fn setup(
     biome_registry: Res<BiomeRegistry>,
 ) {
     let image = Image {
-        data: Some(vec![u8::MAX; map::MAP_SIZE * 4]), // 4 colors (rgba)
+        data: Some(vec![u8::MAX; grid::LAYER_SIZE * 4]), // 4 colors (rgba)
         texture_descriptor: TextureDescriptor {
             label: None,
             mip_level_count: 1,
             sample_count: 1,
-            size: UVec2::splat(map::MAP_AXIS_SIZE as u32).to_extents(),
+            size: grid::DIMS.to_extents(),
             dimension: TextureDimension::D2,
             format: TextureFormat::Rgba8UnormSrgb,
             usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
@@ -85,14 +86,8 @@ fn update_map_image(
     mut images: ResMut<Assets<Image>>,
     registry: Res<TileRegistry>,
     map: Res<Map>,
-    biome_registry: Res<BiomeRegistry>,
 ) {
     let Some(image) = images.get_mut(node.image.id()) else {
-        return;
-    };
-
-    let Some(biome) = biome_registry.get_biome(&map.biome) else {
-        error!("Biome not found: {}", map.biome);
         return;
     };
 
@@ -100,11 +95,11 @@ fn update_map_image(
     let mut min = f32::MAX;
     let mut max = f32::MIN;
 
-    for i in 0..map::MAP_SIZE {
+    for i in 0..grid::LAYER_SIZE {
         let index = i * 4;
-        let elevation = map.elevation[i];
+        let elevation = *map.elevation[i];
+        let tile_id = map.tile[LayerIndex::Floor][i];
 
-        let tile_id = biome.terrain_pallet.collapse(elevation);
         let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
 
         if elevation < min {
