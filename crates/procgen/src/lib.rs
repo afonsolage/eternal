@@ -65,7 +65,17 @@ fn generate_terrain(x: u16, y: u16, biome: &Biome, map: &mut Map) {
     let elevation = biome.terrain_noise.get(x as f32, y as f32);
 
     map.elevation.set(x, y, TileElevation::new(elevation));
-    map.tile[LayerIndex::Floor].set(x, y, biome.terrain_pallet.collapse(elevation));
+
+    map.tile[LayerIndex::Floor].set(
+        x,
+        y,
+        biome.terrain_pallet.collapse(LayerIndex::Floor, elevation),
+    );
+    map.tile[LayerIndex::Wall].set(
+        x,
+        y,
+        biome.terrain_pallet.collapse(LayerIndex::Wall, elevation),
+    );
 }
 
 fn generate_flora(x: u16, y: u16, biome: &Biome, map: &mut Map) {

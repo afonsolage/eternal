@@ -5,7 +5,7 @@ use eternal_config::{
     noise::NoiseStackConfig,
     server::{ConfigAssetUpdated, ConfigServer, Configs},
 };
-use eternal_grid::{ecs::TileRegistry, tile::TileId};
+use eternal_grid::{ecs::TileRegistry, grid::LayerIndex, tile::TileId};
 
 use crate::noise::NoiseStack;
 
@@ -33,11 +33,20 @@ pub struct Flora {
 pub struct FloraRegistry(Vec<Flora>);
 
 #[derive(Default, Debug, Clone, Reflect)]
-pub struct BiomePallet(Vec<(f32, TileId)>);
+pub struct BiomePallet {
+    floor: Vec<(f32, TileId)>,
+    wall: Vec<(f32, TileId)>,
+}
 
 impl BiomePallet {
-    pub fn collapse(&self, value: f32) -> TileId {
-        for &(threshould, tile_id) in &self.0 {
+    pub fn collapse(&self, layer: LayerIndex, value: f32) -> TileId {
+        let layer = match layer {
+            LayerIndex::Floor => &self.floor,
+            LayerIndex::Wall => &self.wall,
+            LayerIndex::Roof => todo!(),
+        };
+
+        for &(threshould, tile_id) in layer {
             if value < threshould {
                 return tile_id;
             }
@@ -47,7 +56,7 @@ impl BiomePallet {
     }
 
     fn is_ready(&self) -> bool {
-        !self.0.is_empty()
+        !self.floor.is_empty()
     }
 }
 
@@ -175,7 +184,8 @@ fn on_biome_terrain_pallet_config_updated(
         return;
     };
 
-    let pallet = pallet_config
+    let floor = pallet_config
+        .floor
         .iter()
         .map(|(threshould, tile_name)| {
             let tile_id = tile_registry.get_id_by_name(tile_name);
@@ -183,7 +193,16 @@ fn on_biome_terrain_pallet_config_updated(
         })
         .collect();
 
-    biome.terrain_pallet = BiomePallet(pallet);
+    let wall = pallet_config
+        .wall
+        .iter()
+        .map(|(threshould, tile_name)| {
+            let tile_id = tile_registry.get_id_by_name(tile_name);
+            (*threshould, tile_id)
+        })
+        .collect();
+
+    biome.terrain_pallet = BiomePallet { floor, wall }
 }
 
 fn on_biome_noise_config_updated(

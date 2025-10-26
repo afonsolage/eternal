@@ -42,13 +42,16 @@ impl FromConfig for BiomeRegistryConfig {
     }
 }
 
-#[derive(Reflect, Default, Debug, Clone, Deref)]
-pub struct BiomePalletConfig(Vec<(f32, String)>);
+#[derive(Reflect, Default, Debug, Clone)]
+pub struct BiomePalletConfig {
+    pub floor: Vec<(f32, String)>,
+    pub wall: Vec<(f32, String)>,
+}
 
 impl FromConfig for BiomePalletConfig {
-    type InnerType = Vec<(f32, String)>;
+    type InnerType = Self;
 
     fn from_inner(asset: Self::InnerType) -> Self {
-        Self(asset)
+        asset
     }
 }
