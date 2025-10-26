@@ -23,7 +23,8 @@ pub struct Flora {
     pub name: String,
     pub tile: TileId,
     pub threshold: f32,
-    pub spacing: f32,
+    pub wall_spacing: u8,
+    pub floor_spacing: u8,
     pub elevation_range: Option<(f32, f32)>,
     pub allowed_terrains: Vec<TileId>,
 }
@@ -230,7 +231,8 @@ fn on_biome_flora_config_updated(
             name: flora_config.name.clone(),
             tile: tile_registry.get_id_by_name(&flora_config.tile),
             threshold: flora_config.threshold,
-            spacing: flora_config.spacing,
+            wall_spacing: flora_config.wall_spacing,
+            floor_spacing: flora_config.floor_spacing,
             elevation_range: flora_config.elevation_range,
             allowed_terrains: flora_config
                 .allowed_terrains

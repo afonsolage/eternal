@@ -119,6 +119,51 @@ pub struct Layer<T> {
     receiver: Mutex<Receiver<(U16Vec2, T)>>,
 }
 
+pub enum SampleShape {
+    Circle(u8),
+    Square(u8),
+}
+
+impl SampleShape {
+    pub fn range(&self, center: U16Vec2) -> Vec<U16Vec2> {
+        let mut positions = vec![];
+        match *self {
+            SampleShape::Circle(radius) => {
+                let min = center.as_ivec2() - IVec2::splat(radius as i32);
+                let max = center.as_ivec2() + IVec2::splat(radius as i32);
+
+                let min = min.clamp(IVec2::ZERO, DIMS.as_ivec2() - IVec2::ONE);
+                let max = max.clamp(IVec2::ZERO, DIMS.as_ivec2() - IVec2::ONE);
+
+                for y in min.y..=max.y {
+                    for x in min.x..=max.x {
+                        let dx = x - center.x as i32;
+                        let dy = y - center.y as i32;
+                        if dx * dx + dy * dy <= (radius as i32 * radius as i32) {
+                            positions.push(U16Vec2::new(x as u16, y as u16));
+                        }
+                    }
+                }
+            }
+            SampleShape::Square(radius) => {
+                let min = center.as_ivec2() - IVec2::splat(radius as i32);
+                let max = center.as_ivec2() + IVec2::splat(radius as i32);
+
+                let min = min.clamp(IVec2::ZERO, DIMS.as_ivec2() - IVec2::ONE);
+                let max = max.clamp(IVec2::ZERO, DIMS.as_ivec2() - IVec2::ONE);
+
+                for y in min.y..=max.y {
+                    for x in min.x..=max.x {
+                        positions.push(U16Vec2::new(x as u16, y as u16));
+                    }
+                }
+            }
+        }
+
+        positions
+    }
+}
+
 impl<T> Layer<T> {
     fn new(data: Vec<T>) -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
@@ -141,6 +186,14 @@ impl<T> Layer<T> {
         self.iter()
             .enumerate()
             .map(|(i, t)| ((i as u32 % DIMS.x) as u16, (i as u32 / DIMS.x) as u16, t))
+    }
+
+    pub fn sample(&self, x: u16, y: u16, shape: SampleShape) -> Vec<&T> {
+        shape
+            .range(U16Vec2::new(x, y))
+            .into_iter()
+            .map(|pos| self.get(pos.x, pos.y))
+            .collect()
     }
 }
 
@@ -214,5 +267,85 @@ impl GridVisible {
             });
 
         rect
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sample_circle() {
+        // Arrange
+        let shape = SampleShape::Circle(2);
+        let center = U16Vec2::new(10, 10);
+
+        // Act
+        let points = shape.range(center);
+
+        // Assert
+        let expected = [
+            // center
+            U16Vec2::new(10, 10),
+            // radius 1
+            U16Vec2::new(9, 10),
+            U16Vec2::new(11, 10),
+            U16Vec2::new(10, 9),
+            U16Vec2::new(10, 11),
+            // radius 2
+            U16Vec2::new(8, 10),
+            U16Vec2::new(12, 10),
+            U16Vec2::new(10, 8),
+            U16Vec2::new(10, 12),
+            U16Vec2::new(9, 9),
+            U16Vec2::new(11, 9),
+            U16Vec2::new(9, 11),
+            U16Vec2::new(11, 11),
+        ];
+
+        points.into_iter().for_each(|p| {
+            assert!(expected.contains(&p));
+        });
+    }
+
+    #[test]
+    fn sample_square() {
+        // Arrange
+        let shape = SampleShape::Square(2);
+        let center = U16Vec2::new(10, 10);
+
+        // Act
+        let points = shape.range(center);
+
+        // Assert
+        let mut expected = Vec::new();
+        for y in 8..=12 {
+            for x in 8..=12 {
+                expected.push(U16Vec2::new(x, y));
+            }
+        }
+
+        assert_eq!(points.len(), expected.len());
+        points.into_iter().for_each(|p| {
+            assert!(expected.contains(&p));
+        });
+    }
+
+    #[test]
+    fn layer_sample() {
+        // Arrange
+        let mut layer = Layer::new(vec![0; LAYER_SIZE]);
+        layer.set(10, 10, 42);
+        let shape = SampleShape::Circle(1);
+
+        // Act
+        shape
+            .range(U16Vec2::new(10, 10))
+            .into_iter()
+            .for_each(|p| layer.set(p.x, p.y, 42));
+        let sampled_values = layer.sample(10, 10, shape);
+
+        // Assert
+        assert!(sampled_values.into_iter().all(|v| *v == 42));
     }
 }

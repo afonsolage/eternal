@@ -2573,9 +2573,11 @@ dependencies = [
  "bevy",
  "bevy-inspector-egui",
  "bevy_egui",
+ "bytemuck",
  "eternal_config",
  "eternal_grid",
  "eternal_procgen",
+ "eternal_ui",
 ]
 
 [[package]]

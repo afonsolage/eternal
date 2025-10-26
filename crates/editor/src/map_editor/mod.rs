@@ -10,18 +10,27 @@ use eternal_grid::{
 };
 use eternal_procgen::{biome::BiomeRegistry, map::Map};
 
-use crate::EditorState;
+use crate::{
+    EditorState,
+    map_editor::ui::{MapOptions, MapUiPlugin},
+};
+
+mod ui;
 
 pub struct MapEditorPlugin;
 
 impl Plugin for MapEditorPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(EditorState::Map), setup)
+        app.add_plugins(MapUiPlugin)
+            .add_systems(OnEnter(EditorState::Map), setup)
             .add_systems(OnExit(EditorState::Map), cleanup)
             .add_systems(
                 Update,
                 (
-                    update_map_image.run_if(resource_exists_and_changed::<Map>),
+                    update_map_image.run_if(
+                        resource_exists::<Map>
+                            .and(resource_changed::<Map>.or(resource_changed::<MapOptions>)),
+                    ),
                     update_map.run_if(resource_changed::<BiomeRegistry>),
                     draw_gizmos,
                 )
@@ -39,7 +48,7 @@ fn setup(
     biome_registry: Res<BiomeRegistry>,
 ) {
     let image = Image {
-        data: Some(vec![u8::MAX; grid::LAYER_SIZE * 4]), // 4 colors (rgba)
+        data: Some(vec![0; grid::LAYER_SIZE * 4]), // 4 colors (rgba)
         texture_descriptor: TextureDescriptor {
             label: None,
             mip_level_count: 1,
@@ -86,21 +95,22 @@ fn update_map_image(
     mut images: ResMut<Assets<Image>>,
     registry: Res<TileRegistry>,
     map: Res<Map>,
+    opts: Res<MapOptions>,
 ) {
     let Some(image) = images.get_mut(node.image.id()) else {
         return;
     };
 
     let data = image.data.as_mut().unwrap();
+    data.fill(0);
+
+    let colors: &mut [[u8; 4]] = bytemuck::cast_slice_mut(image.data.as_mut().unwrap());
+
     let mut min = f32::MAX;
     let mut max = f32::MIN;
 
-    for i in 0..grid::LAYER_SIZE {
-        let index = i * 4;
+    for (i, color) in colors.iter_mut().enumerate() {
         let elevation = *map.elevation[i];
-        let tile_id = map.tile[LayerIndex::Floor][i];
-
-        let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
 
         if elevation < min {
             min = elevation;
@@ -109,11 +119,21 @@ fn update_map_image(
             max = elevation;
         }
 
-        let color = tile_info.map_color.to_u8_array();
+        if opts.terrain {
+            let tile_id = map.tile[LayerIndex::Floor][i];
 
-        data[index] = color[0];
-        data[index + 1] = color[1];
-        data[index + 2] = color[2];
+            let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
+            *color = tile_info.map_color.to_u8_array();
+        }
+
+        if opts.flora {
+            let tile_id = map.tile[LayerIndex::Wall][i];
+
+            if !tile_id.is_none() {
+                let tile_info = registry.get(&tile_id).unwrap_or(&NONE_INFO);
+                *color = tile_info.map_color.to_u8_array();
+            }
+        }
     }
 
     debug!("{min}, {max}");

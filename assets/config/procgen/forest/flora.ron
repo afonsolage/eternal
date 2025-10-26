@@ -2,9 +2,10 @@
     (
         name: "TREE",
         tile: "TREE_WALL",
-        threshold: 0.5,
-        spacing: 3.0,
-        elevation_range: Some((0.0, 0.5)),
+        threshold: -0.1,
+        wall_spacing: 2,
+        floor_spacing: 1,
+        elevation_range: Some((0.1, 0.2)),
         allowed_terrains: ["GRASS"],
     ),
 ]

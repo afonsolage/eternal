@@ -14,7 +14,8 @@ pub struct FloraConfig {
     pub name: String,
     pub tile: String,
     pub threshold: f32,
-    pub spacing: f32,
+    pub wall_spacing: u8,
+    pub floor_spacing: u8,
     pub elevation_range: Option<(f32, f32)>,
     pub allowed_terrains: Vec<String>,
 }
@@ -42,7 +43,8 @@ mod tests {
         name: "TREE",
         tile: "TREE_WALL",
         threshold: 0.5,
-        spacing: 3.0,
+        wall_spacing: 1,
+        floor_spacing: 3,
         elevation_range: Some((0.0, 0.5)),
         allowed_terrains: ["GRASS"],
     ),
@@ -61,7 +63,8 @@ mod tests {
         assert_eq!(&config.name, "TREE");
         assert_eq!(&config.tile, "TREE_WALL");
         assert_eq!(config.threshold, 0.5);
-        assert_eq!(config.spacing, 3.0);
+        assert_eq!(config.wall_spacing, 1);
+        assert_eq!(config.floor_spacing, 3);
         assert_eq!(config.elevation_range, Some((0.0, 0.5)));
         assert_eq!(config.allowed_terrains, vec!["GRASS"]);
     }

@@ -2,10 +2,10 @@
     (
         "tree_density",
         Fbm(
-            seed: 42,
-            frequency: 0.025,
-            octaves: 4,
-            lacunarity: 2.0,
+            seed: 43,
+            frequency: 0.15,
+            octaves: 3,
+            lacunarity: 2.22,
             persistence: 0.5,
         ),
     ),

@@ -4,6 +4,7 @@ use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use eternal_config::ConfigPlugin;
 use eternal_grid::ecs::GridPlugin;
 use eternal_procgen::ProcGenPlugin;
+use eternal_ui::UiPlugin;
 
 use crate::{atlas_editor::AtlasEditorPlugin, map_editor::MapEditorPlugin};
 
@@ -17,6 +18,7 @@ impl Plugin for EditorPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((EguiPlugin::default(), WorldInspectorPlugin::default()))
             .add_plugins((
+                UiPlugin,
                 ProcGenPlugin,
                 camera::CameraPlugin,
                 ConfigPlugin,

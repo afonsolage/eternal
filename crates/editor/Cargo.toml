@@ -7,9 +7,11 @@ edition = "2024"
 eternal_grid.workspace = true
 eternal_procgen.workspace = true
 eternal_config.workspace = true
+eternal_ui.workspace = true
 
 bevy.workspace = true
 
+bytemuck.workspace = true
 bevy_egui.workspace = true
 bevy-inspector-egui.workspace = true
 

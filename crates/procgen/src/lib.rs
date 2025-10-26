@@ -47,6 +47,11 @@ pub fn generate_map(biome: &Biome) -> Map {
     for y in 0..grid::DIMS.y as u16 {
         for x in 0..grid::DIMS.x as u16 {
             generate_terrain(x, y, biome, &mut map);
+        }
+    }
+
+    for y in 0..grid::DIMS.y as u16 {
+        for x in 0..grid::DIMS.x as u16 {
             generate_flora(x, y, biome, &mut map);
         }
     }
@@ -66,17 +71,43 @@ fn generate_terrain(x: u16, y: u16, biome: &Biome, map: &mut Map) {
 fn generate_flora(x: u16, y: u16, biome: &Biome, map: &mut Map) {
     let probability = biome.flora_noise.get(x as f32, y as f32);
     let elevation = **map.elevation.get(x, y);
-    let tile = map.tile[LayerIndex::Floor].get(x, y);
 
-    let Some(flora) = biome.flora_registry.iter().find(|flora| {
-        flora.threshold > probability
-            && (flora.allowed_terrains.is_empty() || flora.allowed_terrains.contains(tile))
-            && flora
-                .elevation_range
-                .is_none_or(|(min, max)| elevation > min && elevation < max)
-    }) else {
-        return;
-    };
+    let floor_layer = &map.tile[LayerIndex::Floor];
+    let wall_layer = &map.tile[LayerIndex::Wall];
 
-    map.tile[LayerIndex::Wall].set(x, y, flora.tile);
+    let tile = floor_layer.get(x, y);
+
+    // Check floras which can be spawned here.
+    let mut flora_candidates = biome
+        .flora_registry
+        .iter()
+        .filter(|flora| {
+            probability > flora.threshold
+                && (flora.allowed_terrains.is_empty() || flora.allowed_terrains.contains(tile))
+                && flora
+                    .elevation_range
+                    .is_none_or(|(min, max)| min > elevation && elevation < max)
+        })
+        .collect::<Vec<_>>();
+
+    // Don't spawn if there is other flora blocking the wall space nearby
+    flora_candidates.retain(|f| {
+        wall_layer
+            .sample(x, y, grid::SampleShape::Circle(f.wall_spacing))
+            .into_iter()
+            .all(|t| t.is_none())
+    });
+
+    // Don't spawn if there isn't enough space on the floor
+    flora_candidates.retain(|f| {
+        floor_layer
+            .sample(x, y, grid::SampleShape::Circle(f.floor_spacing))
+            .into_iter()
+            .all(|t| f.allowed_terrains.contains(t))
+    });
+
+    // Set the flora to spawn it.
+    if let Some(flora) = flora_candidates.first() {
+        map.tile[LayerIndex::Wall].set(x, y, flora.tile);
+    }
 }
