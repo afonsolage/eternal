@@ -15,7 +15,7 @@ const WEIGHT_NONE = 65535u;
 const DISCARD: TileData = TileData(65535u, 0u);
 const BLEND_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
 
-const WALL_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
+const WALL_RECT = vec4<f32>(0.0, 0.3, 1.0, 1.0);
 const WALL_OUTLINE = vec4<f32>(0.03, 0.03, 0.03, 1.0);
 
 const SHADOW_INTENSITY = 0.8;
@@ -167,7 +167,7 @@ fn cast_shadow(tile_pos: vec2<i32>, uv: vec2<f32>, color: vec4<f32>) -> vec4<f32
     }
 
     // NOTE: It may be possible to use this to cast directional shadow, base on sun dir.
-    let shadow_thickness = vec4<f32>(0.5, 0.5, 0.5, 0.5);
+    let shadow_thickness = vec4<f32>(0.1, 0.1, 0.1, 0.5);
 
     var total_intensity = 0.0;
 
@@ -222,32 +222,32 @@ fn cast_shadow(tile_pos: vec2<i32>, uv: vec2<f32>, color: vec4<f32>) -> vec4<f32
 /// Get the final color of the wall outline. This function computes the wall
 /// color and the corners of the wall, to give a better illusion of depth.
 fn get_wall_color(uv: vec2<f32>, tile_pos: vec2<i32>) -> vec4<f32> {
-    let is_at_diag = abs(uv.x - uv.y) < 0.01 || abs(uv.x + uv.y - 1.0) < 0.01;
-
-    // If the current uv coordinates is in a "cross"-shape, with matches the corner
-    if (is_at_diag) {
-        let dir = get_border_dir(uv);
-        let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), WALL_LAYER);
-
-        // Only draw the corner depth color if there is no neighbor
-        if (d_nbor_data.atlas_index == DISCARD.atlas_index) {
-            let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), WALL_LAYER);
-            let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), WALL_LAYER);
-
-            if (h_nbor_data.atlas_index == DISCARD.atlas_index &&
-                v_nbor_data.atlas_index == DISCARD.atlas_index) {
-
-                // If both neighbor are missing, draw a brigther color
-                return vec4<f32>(WALL_OUTLINE.xyz * 2.0, 1.0);
-
-            } else if (h_nbor_data.atlas_index != DISCARD.atlas_index &&
-                       v_nbor_data.atlas_index != DISCARD.atlas_index) {
-
-                // If both neighbor are present, draw a darker color
-                return vec4<f32>(WALL_OUTLINE.xyz * 0.5, 1.0);
-            }
-        }
-    }
+//    let is_at_diag = abs(uv.x - uv.y) < 0.01 || abs(uv.x + uv.y - 1.0) < 0.01;
+//
+//    // If the current uv coordinates is in a "cross"-shape, with matches the corner
+//    if (is_at_diag) {
+//        let dir = get_border_dir(uv);
+//        let d_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, dir.y), WALL_LAYER);
+//
+//        // Only draw the corner depth color if there is no neighbor
+//        if (d_nbor_data.atlas_index == DISCARD.atlas_index) {
+//            let h_nbor_data = get_tile_data(tile_pos + vec2<i32>(dir.x, 0), WALL_LAYER);
+//            let v_nbor_data = get_tile_data(tile_pos + vec2<i32>(0, dir.y), WALL_LAYER);
+//
+//            if (h_nbor_data.atlas_index == DISCARD.atlas_index &&
+//                v_nbor_data.atlas_index == DISCARD.atlas_index) {
+//
+//                // If both neighbor are missing, draw a brigther color
+//                return vec4<f32>(WALL_OUTLINE.xyz * 2.0, 1.0);
+//
+//            } else if (h_nbor_data.atlas_index != DISCARD.atlas_index &&
+//                       v_nbor_data.atlas_index != DISCARD.atlas_index) {
+//
+//                // If both neighbor are present, draw a darker color
+//                return vec4<f32>(WALL_OUTLINE.xyz * 0.5, 1.0);
+//            }
+//        }
+//    }
 
     return WALL_OUTLINE;
 }
