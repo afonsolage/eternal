@@ -242,9 +242,10 @@ fn update_tilemap_chunk_material(
 
                 pod.index = info.atlas_index;
                 pod.weight = match info.blend_tech {
-                    tile::BlendTech::None => u16::MAX,
+                    tile::BlendTech::None => u8::MAX,
                     tile::BlendTech::Weight(w) => w,
                 };
+                pod.outline = if info.outline { 1 } else { 0 };
             });
     }
 }
@@ -281,8 +282,9 @@ fn on_grid_id_changed(
         let pod = &mut tile_data_pods[grid::to_index(x, y)];
         pod.index = info.atlas_index;
         pod.weight = match info.blend_tech {
-            tile::BlendTech::None => u16::MAX,
+            tile::BlendTech::None => u8::MAX,
             tile::BlendTech::Weight(w) => w,
         };
+        pod.outline = if info.outline { 1 } else { 0 };
     }
 }

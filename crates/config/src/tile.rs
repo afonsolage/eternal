@@ -23,7 +23,7 @@ pub enum TileKind {
 pub enum BlendTech {
     #[default]
     None,
-    Weight(u16),
+    Weight(u8),
 }
 
 #[derive(Debug, Reflect, Clone)]
@@ -33,6 +33,7 @@ pub struct TileConfig {
     pub atlas: String,
     pub atlas_index: u16,
     pub map_color: HexColor,
+    pub outline: bool,
     pub blend_tech: Option<BlendTech>,
 }
 

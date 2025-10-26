@@ -9,6 +9,7 @@ pub const NONE_INFO: TileInfo = TileInfo {
     atlas: Handle::Uuid(AssetId::<Image>::DEFAULT_UUID, PhantomData),
     atlas_index: u16::MAX,
     map_color: Srgba::NONE,
+    outline: false,
     blend_tech: BlendTech::None,
 };
 
@@ -26,7 +27,7 @@ pub enum TileKind {
 pub enum BlendTech {
     #[default]
     None,
-    Weight(u16),
+    Weight(u8),
 }
 
 #[derive(Debug, Default, Clone, Reflect)]
@@ -36,6 +37,7 @@ pub struct TileInfo {
     pub atlas: Handle<Image>,
     pub atlas_index: u16,
     pub map_color: Srgba,
+    pub outline: bool,
     pub blend_tech: BlendTech,
 }
 

@@ -83,6 +83,7 @@ fn on_tile_config_list_updated(
                 atlas,
                 atlas_index,
                 map_color,
+                outline,
                 blend_tech,
             } = config;
 
@@ -92,6 +93,7 @@ fn on_tile_config_list_updated(
                 atlas: asset_server.load(atlas),
                 atlas_index: *atlas_index,
                 map_color: map_color.into(),
+                outline: *outline,
                 blend_tech: blend_tech.unwrap_or_default().into(),
             };
 

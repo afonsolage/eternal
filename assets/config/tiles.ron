@@ -5,6 +5,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 5,
         map_color: "#33cc33",
+        outline: false,
         blend_tech: Weight(3),
     ),
     (
@@ -13,6 +14,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 15,
         map_color: "#996633",
+        outline: false,
         blend_tech: Weight(2),
     ),
     (
@@ -21,6 +23,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 13,
         map_color: "#3399ff",
+        outline: false,
         blend_tech: Weight(0),
     ),
     (
@@ -29,6 +32,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 14,
         map_color: "#808080",
+        outline: false,
         blend_tech: Weight(4),
     ),
     (
@@ -37,6 +41,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 12,
         map_color: "#ffcc66",
+        outline: false,
         blend_tech: Weight(1),
     ),
     (
@@ -45,6 +50,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 11,
         map_color: "#11cc66",
+        outline: true,
         blend_tech: None,
     ),
     (
@@ -53,6 +59,7 @@
         atlas: "sheets/terrain.png",
         atlas_index: 7,
         map_color: "#5a3618",
+        outline: false,
         blend_tech: None,
     ),
 ]

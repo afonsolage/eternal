@@ -12,7 +12,7 @@
 @group(2) @binding(5) var tiles_data: texture_2d_array<u32>;
 
 const WEIGHT_NONE = 65535u;
-const DISCARD: TileData = TileData(65535u, 0u);
+const DISCARD: TileData = TileData(65535u, 0u, false);
 const BLEND_RECT = vec4<f32>(0.3, 0.3, 0.7, 0.7);
 
 const WALL_RECT = vec4<f32>(0.0, 0.3, 1.0, 1.0);
@@ -26,6 +26,7 @@ const WALL_LAYER = 1u;
 struct TileData {
     atlas_index: u32,
     weight: u32,
+    outline: bool,
 }
 
 struct Vertex {
@@ -82,9 +83,10 @@ fn get_tile_data(tile_pos: vec2<i32>, layer: u32) -> TileData {
 
     // Get the desired atlas texture index to render on current tile;
     let atlas_index =  data.r;
-    let weight = data.g;
+    let weight = data.g & 0xFF;
+    let outline = (data.g >> 8) == 1;
 
-    return TileData(atlas_index, weight);
+    return TileData(atlas_index, weight, outline);
 }
 
 /// Check if a given UV is inside the given rect (min_x, min_y, max_x, max_y)
@@ -330,10 +332,15 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
 #endif
     } else if in.layer == WALL_LAYER {
 #ifdef WALL_HIDE_OUTLINE
-        return get_atlas_index_color(tile_data.atlas_index, uv);
+        let draw_outline = false;
 #else
-        return draw_outline_wall(tile_pos, uv);
+        let draw_outline = tile_data.outline;
 #endif
+        if (draw_outline) {
+            return draw_outline_wall(tile_pos, uv);
+        } else {
+            return get_atlas_index_color(tile_data.atlas_index, uv);
+        }
     } else {
         discard;
     }

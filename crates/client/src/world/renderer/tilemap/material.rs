@@ -20,7 +20,8 @@ const SHADER_PATH: &str = "shaders/tilemap_chunk_material.wgsl";
 #[derive(Debug, Clone, Copy, Pod, Zeroable)]
 pub struct TilePod {
     pub index: u16,  // Red channel
-    pub weight: u16, // Green channel.
+    pub weight: u8,  // Green channel.
+    pub outline: u8, // Green channel.
 }
 
 impl From<&TilemapChunkMaterial> for TilemapChunkMaterialConfig {
