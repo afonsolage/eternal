@@ -45,6 +45,10 @@ impl BiomePallet {
 
         Default::default()
     }
+
+    fn is_ready(&self) -> bool {
+        !self.0.is_empty()
+    }
 }
 
 #[derive(Default, Debug, Clone, Reflect)]
@@ -54,6 +58,15 @@ pub struct Biome {
     pub flora_noise: NoiseStack,
     pub terrain_noise: NoiseStack,
     pub terrain_pallet: BiomePallet,
+}
+
+impl Biome {
+    fn is_ready(&self) -> bool {
+        self.flora_noise.is_ready()
+            && self.terrain_noise.is_ready()
+            && self.terrain_pallet.is_ready()
+            && !self.flora_registry.is_empty()
+    }
 }
 
 #[derive(Component, Deref)]
@@ -69,6 +82,14 @@ impl BiomeRegistry {
 
     pub fn get_biome_mut(&mut self, name: &str) -> Option<&mut Biome> {
         self.0.iter_mut().find(|b| b.name == name)
+    }
+
+    pub fn is_ready(&self) -> bool {
+        if self.is_empty() {
+            return false;
+        }
+
+        self.iter().all(|b| b.is_ready())
     }
 }
 

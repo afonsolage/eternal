@@ -281,6 +281,10 @@ impl NoiseStack {
             .get([x as f64, y as f64]) as f32
     }
 
+    pub fn is_ready(&self) -> bool {
+        self.main.is_some()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.specs.is_empty()
     }

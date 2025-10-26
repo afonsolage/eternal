@@ -16,17 +16,21 @@ use eternal_grid::{
     tile::{self},
 };
 use eternal_ui::window::{WindowConfig, window};
+
+use crate::ClientState;
 pub struct UIDrawTileMap;
 
 impl Plugin for UIDrawTileMap {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_debug_ui)
+        app.add_systems(OnEnter(ClientState::Playing), spawn_debug_ui)
             .add_systems(
                 Update,
                 (
-                    update_whole_map.run_if(resource_changed::<TileRegistry>),
+                    update_whole_map
+                        .run_if(resource_changed::<TileRegistry>.or(state_changed::<ClientState>)),
                     update_overlay.run_if(should_redraw_overlay),
-                ),
+                )
+                    .run_if(in_state(ClientState::Playing)),
             )
             .add_observer(on_grid_id_changed);
     }

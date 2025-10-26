@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use eternal_config::ConfigPlugin;
-use eternal_grid::grid;
+use eternal_grid::{ecs::TileRegistry, grid};
+use eternal_procgen::biome::BiomeRegistry;
 use eternal_ui::UiPlugin;
 
 use crate::{
@@ -30,8 +31,17 @@ impl Plugin for ClientPlugin {
                 PlayerPlugin,
                 UiPlugin,
             ))
-            .add_systems(Startup, setup);
+            .init_state::<ClientState>()
+            .add_systems(OnEnter(ClientState::Playing), setup)
+            .add_systems(Update, loading.run_if(in_state(ClientState::Loading)));
     }
+}
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Hash, States)]
+enum ClientState {
+    #[default]
+    Loading,
+    Playing,
 }
 
 fn setup(mut commands: Commands) {
@@ -39,4 +49,16 @@ fn setup(mut commands: Commands) {
         Player,
         Transform::from_translation(grid::grid_to_world(140, 100).extend(0.0)),
     ));
+}
+
+fn loading(
+    biome_registry: Res<BiomeRegistry>,
+    tile_registry: Res<TileRegistry>,
+    mut next_state: ResMut<NextState<ClientState>>,
+) {
+    if !biome_registry.is_ready() || tile_registry.is_empty() {
+        return;
+    }
+
+    next_state.set(ClientState::Playing);
 }

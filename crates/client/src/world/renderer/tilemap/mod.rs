@@ -14,9 +14,12 @@ mod material;
 use eternal_grid::ecs::TileRegistry;
 pub use material::{TilePod, TilemapChunkMaterial};
 
-use crate::world::{
-    grid::{self, GridId, GridIdChanged, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
-    tile::{self},
+use crate::{
+    ClientState,
+    world::{
+        grid::{self, GridId, GridIdChanged, LAYER_SIZE, LAYERS, LAYERS_COUNT, LayerIndex},
+        tile::{self},
+    },
 };
 
 pub const TILES_PER_CHUNK: U16Vec2 = U16Vec2::new(32, 32);
@@ -28,7 +31,9 @@ impl Plugin for TilemapPlugin {
         app.add_plugins(Material2dPlugin::<TilemapChunkMaterial>::default())
             .add_systems(
                 Update,
-                update_tilemap_chunk_material.run_if(resource_changed::<TileRegistry>),
+                (update_tilemap_chunk_material
+                    .run_if(resource_changed::<TileRegistry>.or(state_changed::<ClientState>)),)
+                    .run_if(in_state(ClientState::Playing)),
             )
             .add_observer(on_grid_id_changed);
     }

@@ -1,12 +1,13 @@
 use std::time::Duration;
 
 use bevy::{math::U16Vec2, prelude::*};
+use eternal_procgen::{ProcGenPlugin, biome::BiomeRegistry, map::Map};
 
 use crate::{
+    ClientState,
     run_conditions::timeout,
     world::{
         actions::ActionsPlugin,
-        genesis::GenesisPlugin,
         physics::PhysicsPlugin,
         renderer::{MapRendererPlugin, tilemap::Tilemap},
     },
@@ -18,7 +19,6 @@ use eternal_grid::{
 };
 
 mod actions;
-pub mod genesis;
 pub mod physics;
 pub mod renderer;
 
@@ -30,10 +30,10 @@ impl Plugin for WorldPlugin {
             .add_plugins((
                 MapRendererPlugin,
                 PhysicsPlugin,
-                GenesisPlugin,
                 ActionsPlugin,
+                ProcGenPlugin,
             ))
-            .add_systems(Startup, setup)
+            .add_systems(OnEnter(ClientState::Playing), spawn_map)
             .add_systems(
                 PreUpdate,
                 (
@@ -44,13 +44,33 @@ impl Plugin for WorldPlugin {
     }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_map(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    biome_registry: Res<BiomeRegistry>,
+) {
     let tilemap = Tilemap {
         atlas_texture: asset_server.load("sheets/terrain.png"),
         atlas_dims: UVec2::new(4, 4),
     };
 
-    commands.spawn((Name::new("Map"), tilemap, GridId::new(), GridVisible::new()));
+    let forest = biome_registry
+        .get_biome("Forest")
+        .expect("Forest biome should always exists");
+
+    let Map {
+        tile, elevation, ..
+    } = eternal_procgen::generate_map(forest);
+
+    debug!("Generated ids!");
+
+    commands.spawn((
+        Name::new("Map"),
+        tilemap,
+        tile,
+        elevation,
+        GridVisible::new(),
+    ));
 }
 
 fn update_tile_visibility(
