@@ -1,13 +1,30 @@
 [
     (
-        "tree_density",
+        "base_density",
         Fbm(
-            seed: 43,
-            frequency: 0.15,
-            octaves: 3,
-            lacunarity: 2.22,
+            seed: 42,
+            frequency: 0.01,
+            octaves: 4,
+            lacunarity: 2.0,
             persistence: 0.5,
         ),
     ),
-    ("main", Alias("tree_density")),
+    (
+        "clearing",
+        Fbm(
+            seed: 42,
+            frequency: 0.35,
+            octaves: 2,
+            lacunarity: 2.0,
+            persistence: 0.5,
+        ),
+    ),
+    (
+        "min",
+        Min(
+            source_1: "base_density",
+            source_2: "clearing",
+        ),
+    ),
+    ("main", Alias("min")),
 ]

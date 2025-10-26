@@ -103,7 +103,7 @@ fn generate_flora(x: u16, y: u16, biome: &Biome, map: &mut Map) {
         floor_layer
             .sample(x, y, grid::SampleShape::Circle(f.floor_spacing))
             .into_iter()
-            .all(|t| f.allowed_terrains.contains(t))
+            .all(|t| f.allowed_terrains.is_empty() || f.allowed_terrains.contains(t))
     });
 
     // Set the flora to spawn it.
