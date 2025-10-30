@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use eternal_config::{
     biome::{BiomePalletConfig, BiomeRegistryConfig},
-    flora::FloraRegistryConfig,
+    flora::FloraSpawnRegistryConfig,
     noise::NoiseStackConfig,
     server::{ConfigAssetUpdated, ConfigServer, Configs},
 };
@@ -145,7 +145,7 @@ fn on_biome_config_updated(
             .observe(on_biome_noise_config_updated);
 
         config_server
-            .load::<FloraRegistryConfig>(&config.flora)
+            .load::<FloraSpawnRegistryConfig>(&config.flora)
             .insert(BiomeName(config.name.clone()))
             .observe(on_biome_flora_config_updated);
 
@@ -244,7 +244,7 @@ fn on_biome_noise_config_updated(
 fn on_biome_flora_config_updated(
     updated: On<ConfigAssetUpdated>,
     q_names: Query<&BiomeName>,
-    flora_configs: Configs<FloraRegistryConfig>,
+    flora_configs: Configs<FloraSpawnRegistryConfig>,
     mut registry: ResMut<BiomeRegistry>,
     tile_registry: Res<TileRegistry>,
 ) {
@@ -269,7 +269,7 @@ fn on_biome_flora_config_updated(
         .iter()
         .map(|flora_config| Flora {
             name: flora_config.name.clone(),
-            tile: tile_registry.get_id_by_name(&flora_config.tile),
+            tile: tile_registry.get_id_by_name(&flora_config.flora),
             threshold: flora_config.threshold,
             wall_spacing: flora_config.wall_spacing,
             floor_spacing: flora_config.floor_spacing,
